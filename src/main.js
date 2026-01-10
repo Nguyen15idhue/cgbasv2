@@ -1,4 +1,6 @@
 const express = require('express');
+const session = require('express-session');
+const path = require('path');
 const runMigrations = require('./migrations/index');
 const { initCronJobs } = require('./utils/scheduler');
 const logger = require('./utils/logger');
@@ -12,18 +14,53 @@ const { upsertStations, upsertDynamicInfo } = require('./repository/stationRepo'
 const ewelinkService = require('./services/ewelinkService');
 const ewelinkRepo = require('./repository/ewelinkRepo');
 
+// Import Middleware
+const { requireAuth } = require('./middleware/auth');
+
 // Import Routes
+const authRoutes = require('./routes/authRoutes');
 const stationRoutes = require('./routes/stationRoutes');
 const ewelinkRoutes = require('./routes/ewelinkRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json());
+// ========== CẤU HÌNH MIDDLEWARE ==========
 
-// Endpoints
-app.use('/api/stations', stationRoutes);
-app.use('/api/ewelink', ewelinkRoutes);
+// 1. Body parser
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// 2. Session Management (Phiên làm việc)
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'cgbas-secret-key-change-in-production',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        maxAge: 24 * 60 * 60 * 1000, // 24 giờ
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production' // HTTPS trong production
+    },
+    name: 'cgbas_session'
+}));
+
+// 3. Static files (CSS, JS, Images) - Public
+app.use('/public', express.static(path.join(__dirname, 'public')));
+
+// ========== ROUTES ==========
+
+// PUBLIC ROUTES (Không cần đăng nhập)
+app.use(authRoutes);
+
+// PROTECTED ROUTES (Cần đăng nhập)
+// Trang chủ
+app.get('/', requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, 'views/index.html'));
+});
+
+// API endpoints
+app.use('/api/stations', requireAuth, stationRoutes);
+app.use('/api/ewelink', requireAuth, ewelinkRoutes);
 
 /**
  * Hàm hỗ trợ quét thiết bị eWelink vào DB lúc khởi động

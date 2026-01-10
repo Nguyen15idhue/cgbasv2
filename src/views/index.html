@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ thống CGBAS - Trang chủ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .btn-logout {
+            padding: 8px 20px;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-logout:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .card p {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .card a {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 8px 15px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        .card a:hover {
+            background: #5568d3;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <h1>🛰️ Hệ thống CGBAS</h1>
+            <div class="user-info">
+                <span>Xin chào, <strong id="username">...</strong></span>
+                <button class="btn-logout" onclick="logout()">Đăng xuất</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Dashboard</h2>
+        <div class="dashboard-grid">
+            <div class="card">
+                <h2>📡 Trạm CGBAS</h2>
+                <p>Xem trạng thái và quản lý các trạm vệ tinh CGBAS</p>
+                <a href="/api/stations/status" target="_blank">Xem API</a>
+            </div>
+
+            <div class="card">
+                <h2>🔌 Thiết bị eWelink</h2>
+                <p>Quản lý và điều khiển thiết bị eWelink</p>
+                <a href="/api/ewelink/devices" target="_blank">Xem API</a>
+            </div>
+
+            <div class="card">
+                <h2>⚙️ Phục hồi trạm</h2>
+                <p>Hệ thống tự động phục hồi trạm offline</p>
+                <a href="#">Xem chi tiết</a>
+            </div>
+
+            <div class="card">
+                <h2>📊 Logs</h2>
+                <p>Xem nhật ký hoạt động hệ thống</p>
+                <a href="#">Xem logs</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Kiểm tra đăng nhập khi load trang
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/auth/check');
+                const data = await response.json();
+                
+                if (data.authenticated && data.user) {
+                    document.getElementById('username').textContent = data.user.full_name || data.user.username;
+                } else {
+                    window.location.href = '/login';
+                }
+            } catch (error) {
+                console.error('Auth check error:', error);
+                window.location.href = '/login';
+            }
+        }
+
+        // Đăng xuất
+        async function logout() {
+            if (!confirm('Bạn có chắc muốn đăng xuất?')) return;
+
+            try {
+                const response = await fetch('/api/auth/logout', {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    window.location.href = '/login';
+                }
+            } catch (error) {
+                console.error('Logout error:', error);
+                alert('Lỗi khi đăng xuất');
+            }
+        }
+
+        // Chạy khi load trang
+        checkAuth();
+    </script>
+</body>
+</html>
