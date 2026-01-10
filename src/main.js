@@ -1,12 +1,11 @@
 const express = require('express');
-const cron = require('node-cron');
 const runMigrations = require('./migrations/index');
 const { initCronJobs } = require('./utils/scheduler');
 
 // Cấu hình Database
 const db = require('./config/database');
 
-// Services & Repos cho việc đồng bộ
+// Services & Repos
 const { fetchStations, fetchDynamicInfo } = require('./services/cgbasApi');
 const { upsertStations, upsertDynamicInfo } = require('./repository/stationRepo');
 const ewelinkService = require('./services/ewelinkService');
@@ -19,98 +18,65 @@ const ewelinkRoutes = require('./routes/ewelinkRoutes');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(express.json());
 
-// Gắn các cụm Route (Endpoints)
-app.use('/api/stations', stationRoutes); // VD: /api/stations/status
-app.use('/api/ewelink', ewelinkRoutes);   // VD: /api/ewelink/devices, /api/ewelink/station-on...
+// Endpoints
+app.use('/api/stations', stationRoutes);
+app.use('/api/ewelink', ewelinkRoutes);
 
 /**
- * Hàm hỗ trợ đồng bộ eWelink (Dùng chung cho Khởi động và Cron)
- * Logic duyệt Family và Phân trang đã nằm trọn trong ewelinkService.getAllThings()
+ * Hàm hỗ trợ quét thiết bị eWelink vào DB lúc khởi động
+ * Chỉ dùng 1 lần duy nhất khi bật server để ánh xạ ID.
  */
-async function syncAllEwelink() {
+async function initialSyncEwelink() {
     try {
-        console.log('[eWelink] Đang quét và đồng bộ toàn bộ thiết bị...');
+        console.log('[eWelink] Quét thiết bị khởi tạo...');
         const res = await ewelinkService.getAllThings();
-        
         if (res.error === 0 && res.data.thingList) {
-            const things = res.data.thingList;
-            console.log(`[eWelink] Tìm thấy tổng cộng ${things.length} thiết bị.`);
-            
-            for (const thing of things) {
-                if (thing.itemType === 1) { // Chỉ lưu thiết bị vật lý
-                    await ewelinkRepo.upsertEwelinkDevice(thing.itemData);
-                }
+            for (const thing of res.data.thingList) {
+                if (thing.itemType === 1) await ewelinkRepo.upsertEwelinkDevice(thing.itemData);
             }
-            console.log('[eWelink] Cập nhật Database thành công.');
-        } else {
-            console.error('[eWelink] Lỗi lấy dữ liệu:', res.msg);
+            console.log(`[eWelink] Đã ánh xạ ${res.data.thingList.length} thiết bị.`);
         }
-    } catch (err) {
-        console.error('[eWelink Sync Error]:', err.message);
-    }
+    } catch (err) { console.error('[eWelink Init Error]:', err.message); }
 }
 
-/**
- * Hàm khởi động Server
- */
 async function startServer() {
     try {
-        // 1. Chạy migration tự động (Tạo DB, tạo Bảng trạm, tạo Bảng eWelink)
+        // 1. Khởi tạo Database (Bao gồm bảng jobs mới)
         await runMigrations();
 
-        // 2. Kích hoạt các bộ lập lịch (Scheduler)
-        initCronJobs(); // CGBAS: 15 giây/lần cho trạng thái vệ tinh
+        // 2. Kích hoạt Scheduler (15s cho CGBAS & Recovery Monitor)
+        initCronJobs();
 
-        // Lập lịch cho eWelink: Đồng bộ lại toàn bộ mỗi 1 phút
-        // ĐÃ TẮT - Không tự động đồng bộ eWelink nữa
-        // cron.schedule('*/1 * * * *', async () => {
-        //     await syncAllEwelink();
-        // });
-
-        // 3. Thực hiện đồng bộ dữ liệu lần đầu (Initial Sync)
-        console.log('\n--- BẮT ĐẦU ĐỒNG BỘ DỮ LIỆU KHỞI TẠO ---');
+        // 3. Đồng bộ khởi tạo
+        console.log('\n--- ĐỒNG BỘ KHỞI TẠO HỆ THỐNG ---');
         
-        // --- Đồng bộ CGBAS ---
-        try {
-            const stResult = await fetchStations(1, 9999);
-            if (stResult.code === 'SUCCESS') {
-                await upsertStations(stResult.data.records);
-                const ids = stResult.data.records.map(r => r.id);
-                const dyResult = await fetchDynamicInfo(ids);
-                if (dyResult.code === 'SUCCESS') {
-                    await upsertDynamicInfo(dyResult.data);
-                }
-                console.log('✅ CGBAS: Đồng bộ thành công.');
-            }
-        } catch (cgErr) {
-            console.error('❌ CGBAS: Khởi tạo thất bại:', cgErr.message);
+        // CGBAS Initial
+        const stResult = await fetchStations(1, 9999);
+        if (stResult.code === 'SUCCESS') {
+            await upsertStations(stResult.data.records);
+            const ids = stResult.data.records.map(r => r.id);
+            const dyResult = await fetchDynamicInfo(ids);
+            if (dyResult.code === 'SUCCESS') await upsertDynamicInfo(dyResult.data);
+            console.log('✅ CGBAS: Đồng bộ thành công.');
         }
 
-        // --- Đồng bộ eWelink ---
-        await syncAllEwelink();
-        console.log('✅ eWelink: Đồng bộ khởi tạo hoàn tất.');
-        console.log('----------------------------------------\n');
+        // eWelink Initial (Chỉ lấy info thiết bị, không chạy cron sync 1p nữa)
+        await initialSyncEwelink();
+        console.log('✅ eWelink: Quét khởi tạo hoàn tất.');
 
         // 4. Khởi động Web Server
         app.listen(PORT, () => {
             console.log('-------------------------------------------------------');
-            console.log(`🚀 SERVER ĐANG CHẠY TẠI: http://localhost:${PORT}`);
-            console.log(`- API TRẠM (CGBAS): GET  /api/stations/status`);
-            console.log(`- API THIẾT BỊ (EW): GET  /api/ewelink/devices`);
-            console.log(`- API ĐIỀU KHIỂN LẺ: POST /api/ewelink/control`);
-            console.log(`- API BẬT TRẠM (KB): POST /api/ewelink/station-on`);
-            console.log(`- API TẮT TRẠM (KB): POST /api/ewelink/station-off`);
+            console.log(`🚀 HỆ THỐNG PHỤC HỒI TRẠM ĐANG CHẠY: http://localhost:${PORT}`);
             console.log('-------------------------------------------------------');
         });
 
     } catch (error) {
-        console.error('❌ LỖI KHỞI ĐỘNG HỆ THỐNG:', error.message);
-        process.exit(1); // Thoát nếu không thể khởi động
+        console.error('❌ LỖI KHỞI ĐỘNG:', error.message);
+        process.exit(1);
     }
 }
 
-// Chạy ứng dụng
 startServer();

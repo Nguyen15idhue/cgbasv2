@@ -1,77 +1,84 @@
-// src/services/stationControlService.js
-const { toggleChannel } = require('./ewelinkService');
+const ewelinkService = require('./ewelinkService');
+const cgbasApi = require('./cgbasApi');
 const { sleep, retryAction } = require('../utils/helper');
 const db = require('../config/database');
 
-async function updateDbStatus(deviceid, outlet, status) {
-    const field = outlet === 0 ? 'switch_0' : 'switch_1';
-    await db.execute(`UPDATE ewelink_status SET ${field} = ? WHERE deviceid = ?`, [status, deviceid]);
-}
+const RETRY_INTERVALS = [2, 5, 7, 10, 15, 30]; // Phút chờ
 
 /**
- * KỊCH BẢN BẬT TRẠM
+ * Hàm hỗ trợ lập lịch thử lại khi có bất kỳ lỗi nào xảy ra (Offline hoặc API Fail)
  */
-async function turnOnStation(deviceid) {
-    console.log(`\n=== BẮT ĐẦU KỊCH BẢN BẬT TRẠM: ${deviceid} ===`);
-
-    // Bước 1: Bật kênh 1 (Nguồn chính)
-    const step1 = await retryAction(() => toggleChannel(deviceid, 0, 'on'), `Bật Kênh 1 (Nguồn)`);
-    if (!step1) return { success: false, step: 1, msg: "Không thể bật Kênh 1 sau 5 lần thử" };
-    await updateDbStatus(deviceid, 0, 'on');
-
-    // Bước 2: Chờ 10 giây
-    console.log(`[WAIT] Chờ 10 giây cho thiết bị khởi động...`);
-    await sleep(10000);
-
-    // Bước 3: Bật kênh 2 (Kích khởi động)
-    const step3 = await retryAction(() => toggleChannel(deviceid, 1, 'on'), `Bật Kênh 2 (Kích)`);
-    if (!step3) return { success: false, step: 3, msg: "Không thể bật Kênh 2 sau 5 lần thử" };
-    await updateDbStatus(deviceid, 1, 'on');
-
-    // Bước 4: Chờ 5 giây
-    console.log(`[WAIT] Chờ 5 giây...`);
-    await sleep(5000);
-
-    // Bước 5: Tắt kênh 2 (Nhả nút kích)
-    const step5 = await retryAction(() => toggleChannel(deviceid, 1, 'off'), `Tắt Kênh 2 (Nhả kích)`);
-    if (!step5) return { success: false, step: 5, msg: "Không thể tắt Kênh 2 sau 5 lần thử" };
-    await updateDbStatus(deviceid, 1, 'off');
-
-    console.log(`=== HOÀN THÀNH BẬT TRẠM THÀNH CÔNG ===\n`);
-    return { success: true, msg: "Bật trạm thành công theo kịch bản" };
+async function rescheduleJob(station_id, retry_index, reason) {
+    const waitMin = RETRY_INTERVALS[retry_index] || 60;
+    const nextRun = new Date(Date.now() + waitMin * 60000);
+    
+    console.log(`[Job ${station_id}] ⚠️ Tạm dừng do: ${reason}. Thử lại sau ${waitMin} phút.`);
+    
+    await db.execute(
+        'UPDATE station_recovery_jobs SET status = "PENDING", retry_index = ?, next_run_time = ? WHERE station_id = ?',
+        [retry_index + 1, nextRun, station_id]
+    );
 }
 
-/**
- * KỊCH BẢN TẮT TRẠM
- */
-async function turnOffStation(deviceid) {
-    console.log(`\n=== BẮT ĐẦU KỊCH BẢN TẮT TRẠM: ${deviceid} ===`);
+async function runAutoRecovery(job) {
+    const { station_id, device_id, retry_index } = job;
+    
+    try {
+        // 1. Đánh dấu đang chạy
+        await db.execute('UPDATE station_recovery_jobs SET status = "RUNNING" WHERE station_id = ?', [station_id]);
 
-    // Bước 1: Bật kênh 2 (Kích lệnh tắt)
-    const step1 = await retryAction(() => toggleChannel(deviceid, 1, 'on'), `Bật Kênh 2 (Kích tắt)`);
-    if (!step1) return { success: false, step: 1, msg: "Không thể bật Kênh 2 sau 5 lần thử" };
-    await updateDbStatus(deviceid, 1, 'on');
+        // 2. Kiểm tra Online
+        const deviceRes = await ewelinkService.getAllThings();
+        const device = deviceRes.data.thingList.find(t => t.itemData.deviceid === device_id);
 
-    // Bước 2: Chờ 5 giây
-    console.log(`[WAIT] Chờ 5 giây...`);
-    await sleep(5000);
+        if (!device || !device.itemData.online) {
+            return await rescheduleJob(station_id, retry_index, "Thiết bị eWelink Ngoại tuyến");
+        }
 
-    // Bước 3: Tắt kênh 2 (Nhả nút kích)
-    const step3 = await retryAction(() => toggleChannel(deviceid, 1, 'off'), `Tắt Kênh 2 (Nhả kích)`);
-    if (!step3) return { success: false, step: 3, msg: "Không thể tắt Kênh 2 sau 5 lần thử" };
-    await updateDbStatus(deviceid, 1, 'off');
+        // 3. Kiểm tra Kênh 1 và thực hiện kịch bản
+        const switches = device.itemData.params.switches || [];
+        const ch1Status = switches.find(s => s.outlet === 0)?.switch;
 
-    // Bước 4: Chờ 10 giây
-    console.log(`[WAIT] Chờ 10 giây cho hệ thống đóng hoàn toàn...`);
-    await sleep(10000);
+        // --- THỰC THI LỆNH VỚI CƠ CHẾ RESCHEDULE NẾU FAIL ---
+        
+        if (ch1Status === 'off') {
+            console.log(`[Job ${station_id}] FULL KỊCH BẢN...`);
+            const ok1 = await retryAction(() => ewelinkService.toggleChannel(device_id, 0, 'on'), "Bật Kênh 1");
+            if (!ok1) return await rescheduleJob(station_id, retry_index, "Lỗi API khi Bật Kênh 1");
+            
+            await sleep(10000);
+        }
 
-    // Bước 5: Tắt kênh 1 (Ngắt nguồn sạch)
-    const step5 = await retryAction(() => toggleChannel(deviceid, 0, 'off'), `Tắt Kênh 1 (Ngắt nguồn)`);
-    if (!step5) return { success: false, step: 5, msg: "Không thể tắt Kênh 1 sau 5 lần thử" };
-    await updateDbStatus(deviceid, 0, 'off');
+        // Kích nút (Kênh 2)
+        const ok2 = await retryAction(() => ewelinkService.toggleChannel(device_id, 1, 'on'), "Bật Kênh 2");
+        if (!ok2) return await rescheduleJob(station_id, retry_index, "Lỗi API khi Bật Kênh 2");
+        
+        await sleep(5000);
+        
+        const ok3 = await retryAction(() => ewelinkService.toggleChannel(device_id, 1, 'off'), "Tắt Kênh 2");
+        if (!ok3) return await rescheduleJob(station_id, retry_index, "Lỗi API khi Tắt Kênh 2");
 
-    console.log(`=== HOÀN THÀNH TẮT TRẠM THÀNH CÔNG ===\n`);
-    return { success: true, msg: "Tắt trạm thành công theo kịch bản" };
+        // 4. Chờ kiểm tra kết quả cuối cùng trên CGBAS
+        console.log(`[Job ${station_id}] Điều khiển xong. Chờ 2 phút check CGBAS...`);
+        await db.execute('UPDATE station_recovery_jobs SET status = "CHECKING" WHERE station_id = ?', [station_id]);
+        await sleep(120000);
+
+        const dynamicInfo = await cgbasApi.fetchDynamicInfo([station_id]);
+        const stationStatus = dynamicInfo.data.find(s => s.stationId === station_id);
+
+        if (stationStatus && stationStatus.connectStatus === 1) {
+            console.log(`[Job ${station_id}] ✅ PHỤC HỒI THÀNH CÔNG.`);
+            await db.execute('DELETE FROM station_recovery_jobs WHERE station_id = ?', [station_id]);
+        } else {
+            // NẾU SAU 2 PHÚT VẪN CHƯA LÊN: Có thể do kích chưa ăn, ta tiếp tục reschedule để thử lại từ đầu
+            console.log(`[Job ${station_id}] ❌ Trạm vẫn Offline sau 2 phút.`);
+            return await rescheduleJob(station_id, retry_index, "Trạm không có tín hiệu sau điều khiển");
+        }
+
+    } catch (err) {
+        console.error(`[Job ${station_id}] Lỗi hệ thống:`, err.message);
+        await rescheduleJob(station_id, retry_index, "Lỗi thực thi Code");
+    }
 }
 
-module.exports = { turnOnStation, turnOffStation };
+module.exports = { runAutoRecovery };
