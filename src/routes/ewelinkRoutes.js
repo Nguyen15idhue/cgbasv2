@@ -57,4 +57,34 @@ router.post('/station-off', async (req, res) => {
     else res.status(500).json(result);
 });
 
+// API: Thống kê sử dụng API eWelink
+router.get('/api-stats', async (req, res) => {
+    try {
+        // 1. Tổng số lần gọi
+        const [total] = await db.query('SELECT COUNT(*) as total FROM ewelink_api_logs');
+        
+        // 2. Thống kê theo ngày (7 ngày gần nhất)
+        const [daily] = await db.query(`
+            SELECT DATE(created_at) as date, COUNT(*) as count 
+            FROM ewelink_api_logs 
+            GROUP BY DATE(created_at) 
+            ORDER BY date DESC LIMIT 7
+        `);
+
+        // 3. 20 bản ghi lịch sử mới nhất
+        const [history] = await db.query('SELECT * FROM ewelink_api_logs ORDER BY created_at DESC LIMIT 20');
+
+        res.json({
+            success: true,
+            summary: {
+                total_calls: total[0].total,
+                daily_stats: daily
+            },
+            history: history
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 module.exports = router;

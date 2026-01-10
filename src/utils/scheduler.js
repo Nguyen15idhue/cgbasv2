@@ -1,4 +1,5 @@
 const cron = require('node-cron');
+const logger = require('./logger');
 const { fetchStations, fetchDynamicInfo } = require('../services/cgbasApi');
 const { upsertStations, upsertDynamicInfo, getAllStationIds } = require('../repository/stationRepo');
 const { checkAndTriggerRecovery } = require('./autoMonitor'); // Import bộ giám sát mới
@@ -15,7 +16,7 @@ function initCronJobs() {
         try {
             const ids = await getAllStationIds();
             if (ids.length > 0) {
-                console.log(`[${now}] 📡 Đồng bộ vệ tinh & Kiểm tra phục hồi...`);
+                logger.info(`[${now}] 📡 Đồng bộ vệ tinh & Kiểm tra phục hồi...`);
                 
                 // 1. Đồng bộ vệ tinh CGBAS
                 const dyResult = await fetchDynamicInfo(ids);
@@ -27,7 +28,7 @@ function initCronJobs() {
                 await checkAndTriggerRecovery();
             }
         } catch (error) {
-            console.error(`[${now}] ❌ Lỗi Scheduler:`, error.message);
+            logger.error(`[${now}] ❌ Lỗi Scheduler: ${error.message}`);
         } finally {
             isSyncing = false;
         }
@@ -38,10 +39,12 @@ function initCronJobs() {
         try {
             const stResult = await fetchStations(1, 9999);
             if (stResult.code === 'SUCCESS') await upsertStations(stResult.data.records);
-        } catch (e) { console.error('Lỗi sync hàng giờ:', e.message); }
+        } catch (e) { 
+            logger.error('Lỗi sync hàng giờ: ' + e.message);
+        }
     });
 
-    console.log('🚀 Scheduler: 15s (Satellite & Recovery Monitor) | 1h (Station List).');
+    logger.info('🚀 Scheduler: 15s (Satellite & Recovery Monitor) | 1h (Station List).');
 }
 
 module.exports = { initCronJobs };

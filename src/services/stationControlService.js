@@ -1,6 +1,7 @@
 const ewelinkService = require('./ewelinkService');
 const cgbasApi = require('./cgbasApi');
 const { sleep, retryAction } = require('../utils/helper');
+const logger = require('../utils/logger');
 const db = require('../config/database');
 
 const RETRY_INTERVALS = [2, 5, 7, 10, 15, 30]; // Phút chờ
@@ -12,7 +13,7 @@ async function rescheduleJob(station_id, retry_index, reason) {
     const waitMin = RETRY_INTERVALS[retry_index] || 60;
     const nextRun = new Date(Date.now() + waitMin * 60000);
     
-    console.log(`[Job ${station_id}] ⚠️ Tạm dừng do: ${reason}. Thử lại sau ${waitMin} phút.`);
+    logger.warn(`[Job ${station_id}] ⚠️ Tạm dừng do: ${reason}. Thử lại sau ${waitMin} phút.`);
     
     await db.execute(
         'UPDATE station_recovery_jobs SET status = "PENDING", retry_index = ?, next_run_time = ? WHERE station_id = ?',
@@ -42,7 +43,7 @@ async function runAutoRecovery(job) {
         // --- THỰC THI LỆNH VỚI CƠ CHẾ RESCHEDULE NẾU FAIL ---
         
         if (ch1Status === 'off') {
-            console.log(`[Job ${station_id}] FULL KỊCH BẢN...`);
+            logger.info(`[Job ${station_id}] FULL KỊCH BẢN...`);
             const ok1 = await retryAction(() => ewelinkService.toggleChannel(device_id, 0, 'on'), "Bật Kênh 1");
             if (!ok1) return await rescheduleJob(station_id, retry_index, "Lỗi API khi Bật Kênh 1");
             
@@ -59,7 +60,7 @@ async function runAutoRecovery(job) {
         if (!ok3) return await rescheduleJob(station_id, retry_index, "Lỗi API khi Tắt Kênh 2");
 
         // 4. Chờ kiểm tra kết quả cuối cùng trên CGBAS
-        console.log(`[Job ${station_id}] Điều khiển xong. Chờ 2 phút check CGBAS...`);
+        logger.info(`[Job ${station_id}] Điều khiển xong. Chờ 2 phút check CGBAS...`);
         await db.execute('UPDATE station_recovery_jobs SET status = "CHECKING" WHERE station_id = ?', [station_id]);
         await sleep(120000);
 
@@ -67,16 +68,16 @@ async function runAutoRecovery(job) {
         const stationStatus = dynamicInfo.data.find(s => s.stationId === station_id);
 
         if (stationStatus && stationStatus.connectStatus === 1) {
-            console.log(`[Job ${station_id}] ✅ PHỤC HỒI THÀNH CÔNG.`);
+            logger.info(`[Job ${station_id}] ✅ PHỤC HỒI THÀNH CÔNG.`);
             await db.execute('DELETE FROM station_recovery_jobs WHERE station_id = ?', [station_id]);
         } else {
             // NẾU SAU 2 PHÚT VẪN CHƯA LÊN: Có thể do kích chưa ăn, ta tiếp tục reschedule để thử lại từ đầu
-            console.log(`[Job ${station_id}] ❌ Trạm vẫn Offline sau 2 phút.`);
+            logger.warn(`[Job ${station_id}] ❌ Trạm vẫn Offline sau 2 phút.`);
             return await rescheduleJob(station_id, retry_index, "Trạm không có tín hiệu sau điều khiển");
         }
 
     } catch (err) {
-        console.error(`[Job ${station_id}] Lỗi hệ thống:`, err.message);
+        logger.error(`[Job ${station_id}] Lỗi hệ thống: ${err.message}`);
         await rescheduleJob(station_id, retry_index, "Lỗi thực thi Code");
     }
 }

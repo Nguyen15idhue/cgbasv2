@@ -1,4 +1,6 @@
 const axios = require('axios');
+const logger = require('../utils/logger');
+const db = require('../config/database');
 require('dotenv').config();
 
 const ewelinkApi = axios.create({
@@ -9,11 +11,51 @@ const ewelinkApi = axios.create({
     }
 });
 
-// Log request để debug
+// INTERCEPTOR: Bắt đầu Request
 ewelinkApi.interceptors.request.use(request => {
-    console.log(`[eWelink API] Request: ${request.method.toUpperCase()} ${request.url} ${JSON.stringify(request.params || {})}`);
+    request.metadata = { startTime: new Date() }; // Lưu thời điểm bắt đầu
     return request;
 });
+
+// INTERCEPTOR: Xử lý Response (Thành công hoặc Thất bại)
+ewelinkApi.interceptors.response.use(
+    async (response) => {
+        await logApiCall(response);
+        return response;
+    },
+    async (error) => {
+        await logApiCall(error.response || error);
+        return Promise.reject(error);
+    }
+);
+
+/**
+ * Hàm ghi log vào Database
+ */
+async function logApiCall(res) {
+    try {
+        const endTime = new Date();
+        const config = res.config || res.response?.config;
+        if (!config) return;
+
+        const duration = endTime - config.metadata.startTime;
+        const method = config.method.toUpperCase();
+        const endpoint = config.url;
+        const payload = config.data || '';
+        const responseCode = res.status || 0;
+        const responseBody = JSON.stringify(res.data || {});
+
+        // Lưu vào MySQL
+        await db.execute(
+            `INSERT INTO ewelink_api_logs (method, endpoint, payload, response_code, response_body, duration_ms) 
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [method, endpoint, payload, responseCode, responseBody, duration]
+        );
+    } catch (err) {
+        logger.error('[Logger] Lỗi ghi log API: ' + err.message);
+    }
+}
+
 
 /**
  * Hàm lấy danh sách tất cả Family (Nhà)
@@ -80,7 +122,7 @@ async function getAllThings() {
         };
 
     } catch (error) {
-        console.error('[eWelink Service Error]:', error.message);
+        logger.error('[eWelink Service Error]: ' + error.message);
         return { error: 500, msg: error.message, data: { thingList: [] } };
     }
 }
