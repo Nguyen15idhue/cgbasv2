@@ -1,0 +1,116 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0-debian
+    container_name: cgbas-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASS:-rootpassword}
+      MYSQL_DATABASE: ${DB_NAME:-cgbas_db}
+      MYSQL_USER: ${DB_USER:-cgbas}
+      MYSQL_PASSWORD: ${DB_PASS:-cgbaspassword}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./src/migrations:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "3306:3306"
+    networks:
+      - cgbas-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: --default-authentication-plugin=mysql_native_password
+
+  # CGBAS App - Development
+  app-dev:
+    build:
+      context: .
+      target: development
+      dockerfile: Dockerfile
+    container_name: cgbas-app-dev
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      DB_HOST: mysql
+      DB_USER: ${DB_USER:-cgbas}
+      DB_PASS: ${DB_PASS:-cgbaspassword}
+      DB_NAME: ${DB_NAME:-cgbas_db}
+      SESSION_SECRET: ${SESSION_SECRET:-dev-secret-key}
+      AK: ${AK}
+      SK: ${SK}
+      API_BASE_URL: ${API_BASE_URL}
+      EWELINK_APPID: ${EWELINK_APPID}
+      EWELINK_APPSECRET: ${EWELINK_APPSECRET}
+      EWELINK_TOKEN: ${EWELINK_TOKEN}
+      EWELINK_REFRESHTOKEN: ${EWELINK_REFRESHTOKEN}
+      EWELINK_API: ${EWELINK_API}
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - logs_data:/app/src/logs
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - cgbas-network
+    profiles:
+      - dev
+
+  # CGBAS App - Production
+  app-prod:
+    build:
+      context: .
+      target: production
+      dockerfile: Dockerfile
+    container_name: cgbas-app-prod
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      DB_HOST: mysql
+      DB_USER: ${DB_USER:-cgbas}
+      DB_PASS: ${DB_PASS:-cgbaspassword}
+      DB_NAME: ${DB_NAME:-cgbas_db}
+      SESSION_SECRET: ${SESSION_SECRET}
+      AK: ${AK}
+      SK: ${SK}
+      API_BASE_URL: ${API_BASE_URL}
+      EWELINK_APPID: ${EWELINK_APPID}
+      EWELINK_APPSECRET: ${EWELINK_APPSECRET}
+      EWELINK_TOKEN: ${EWELINK_TOKEN}
+      EWELINK_REFRESHTOKEN: ${EWELINK_REFRESHTOKEN}
+      EWELINK_API: ${EWELINK_API}
+    volumes:
+      - logs_data:/app/src/logs
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - cgbas-network
+    profiles:
+      - prod
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+networks:
+  cgbas-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local
+  logs_data:
+    driver: local
