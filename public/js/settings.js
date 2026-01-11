@@ -1,22 +1,33 @@
 // Settings Page JavaScript
 
-let stations = [];
-let devices = [];
+// Use window scope to avoid redeclaration errors in SPA
+window.settingsStations = window.settingsStations || [];
+window.settingsDevices = window.settingsDevices || [];
 
 // Load data
 async function loadSettings() {
     try {
         // Load stations
         const stationsRes = await fetch('/api/stations/list');
-        if (!stationsRes.ok) throw new Error('Failed to load stations');
+        if (!stationsRes.ok) {
+            const errorText = await stationsRes.text();
+            console.error('Stations API Error:', errorText);
+            throw new Error('Failed to load stations');
+        }
         const stationsData = await stationsRes.json();
-        stations = stationsData.stations || [];
+        console.log('Stations loaded:', stationsData);
+        window.settingsStations = stationsData.stations || [];
 
         // Load devices
         const devicesRes = await fetch('/api/ewelink/devices');
-        if (!devicesRes.ok) throw new Error('Failed to load devices');
+        if (!devicesRes.ok) {
+            const errorText = await devicesRes.text();
+            console.error('Devices API Error:', errorText);
+            throw new Error('Failed to load devices');
+        }
         const devicesData = await devicesRes.json();
-        devices = devicesData.data || [];
+        console.log('Devices loaded:', devicesData);
+        window.settingsDevices = devicesData.data || [];
 
         renderSettings();
     } catch (error) {
@@ -35,6 +46,8 @@ async function loadSettings() {
 // Render settings table
 function renderSettings() {
     const tbody = document.getElementById('settingsTableBody');
+    const stations = window.settingsStations;
+    const devices = window.settingsDevices;
     
     if (stations.length === 0) {
         tbody.innerHTML = `
@@ -123,7 +136,15 @@ async function saveMapping(stationId) {
     }
 }
 
-// Init
-document.addEventListener('DOMContentLoaded', () => {
+// Init function for router
+function loadSettingsData() {
     loadSettings();
-});
+}
+
+// Fallback for direct access
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadSettings);
+} else {
+    // DOM already loaded
+    loadSettings();
+}

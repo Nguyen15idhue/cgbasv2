@@ -33,3 +33,47 @@
     border-radius: 4px;
     font-size: 12px;
 }
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .stats-cards {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .stat-card {
+        padding: 15px;
+    }
+
+    .stat-card h3 {
+        font-size: 24px;
+    }
+
+    .stat-card p {
+        font-size: 12px;
+    }
+
+    .table th,
+    .table td {
+        font-size: 11px;
+        padding: 8px 4px;
+    }
+
+    /* Hide timestamp column on mobile */
+    .table th:nth-child(1),
+    .table td:nth-child(1) {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-cards {
+        grid-template-columns: 1fr;
+    }
+
+    /* Hide level column on small screens */
+    .table th:nth-child(2),
+    .table td:nth-child(2) {
+        display: none;
+    }
+}

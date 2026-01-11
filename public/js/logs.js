@@ -1,7 +1,7 @@
 // Logs Page JavaScript
 
 // Load logs data
-async function loadLogs() {
+async function loadApiStats() {
     try {
         const response = await fetch('/api/ewelink/api-stats');
         
@@ -15,8 +15,18 @@ async function loadLogs() {
 
         const data = await response.json();
         
+        // Check if elements exist (SPA might not have loaded yet)
+        const totalCallsEl = document.getElementById('totalCalls');
+        const logsTableBody = document.getElementById('logsTableBody');
+        
+        if (!totalCallsEl || !logsTableBody) {
+            console.warn('Logs elements not found, retrying...');
+            setTimeout(loadApiStats, 100);
+            return;
+        }
+        
         // Update total calls
-        document.getElementById('totalCalls').textContent = data.summary.total_calls || 0;
+        totalCallsEl.textContent = data.summary.total_calls || 0;
         
         // Render logs table
         renderLogs(data.history || []);
@@ -63,9 +73,3 @@ function renderLogs(logs) {
         </tr>
     `).join('');
 }
-
-// Init
-document.addEventListener('DOMContentLoaded', () => {
-    loadLogs();
-    setInterval(loadLogs, 30000); // Auto refresh
-});

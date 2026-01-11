@@ -1,5 +1,6 @@
 const express = require('express');
 const session = require('express-session');
+const cors = require('cors');
 const path = require('path');
 const runMigrations = require('./migrations/index');
 const { initCronJobs } = require('./utils/scheduler');
@@ -27,11 +28,20 @@ const PORT = process.env.PORT || 3000;
 
 // ========== CẤU HÌNH MIDDLEWARE ==========
 
-// 1. Body parser
+// 1. CORS (Cho phép AJAX requests)
+app.use(cors({
+    origin: true,
+    credentials: true
+}));
+
+// 2. Body parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 2. Session Management (Phiên làm việc)
+// 3. Static files (CSS, JS, Images) - PHẢI Ở ĐẦU để browser load được JS files
+app.use(express.static(path.join(__dirname, '../public')));
+
+// 4. Session Management (Phiên làm việc)
 app.use(session({
     secret: process.env.SESSION_SECRET || 'cgbas-secret-key-change-in-production',
     resave: false,
@@ -62,37 +72,46 @@ app.get('/login', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 
-// PROTECTED PAGE ROUTES (Cần đăng nhập)
+// Serve partials for SPA
+app.get('/partials/:page', requireAuth, (req, res) => {
+    const pageName = req.params.page;
+    const allowedPages = ['dashboard', 'queue', 'stations', 'devices', 'logs', 'settings'];
+    
+    if (allowedPages.includes(pageName)) {
+        res.sendFile(path.join(__dirname, `../public/partials/${pageName}.html`));
+    } else {
+        res.status(404).send('Page not found');
+    }
+});
+
+// PROTECTED PAGE ROUTES (Cần đăng nhập) - Serve SPA index.html
 app.get('/', requireAuth, (req, res) => {
-    res.redirect('/dashboard');
+    res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
 app.get('/dashboard', requireAuth, (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/views/dashboard.html'));
+    res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
 app.get('/queue', requireAuth, (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/views/queue.html'));
+    res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
 app.get('/stations', requireAuth, (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/views/stations.html'));
+    res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
 app.get('/devices', requireAuth, (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/views/devices.html'));
+    res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
 app.get('/logs', requireAuth, (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/views/logs.html'));
+    res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
 app.get('/settings', requireAuth, (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/views/settings.html'));
+    res.sendFile(path.join(__dirname, '../public/index.html'));
 });
-
-// 3. Static files (CSS, JS, Images) - AFTER routes
-app.use(express.static(path.join(__dirname, '../public')));
 
 // API Dashboard stats
 app.get('/api/dashboard/stats', requireAuth, async (req, res) => {
@@ -129,8 +148,14 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res) => {
 app.get('/api/queue/jobs', requireAuth, async (req, res) => {
     try {
         const [jobs] = await db.execute(`
-            SELECT * FROM station_recovery_jobs 
-            ORDER BY created_at DESC
+            SELECT 
+                srj.*,
+                s.stationName,
+                ed.name as device_name
+            FROM station_recovery_jobs srj
+            LEFT JOIN stations s ON srj.station_id = s.id
+            LEFT JOIN ewelink_devices ed ON srj.device_id = ed.deviceid
+            ORDER BY srj.created_at DESC
         `);
         res.json({ jobs });
     } catch (error) {

@@ -1,0 +1,102 @@
+<div class="page-header">
+    <h1>📊 Tổng quan hệ thống</h1>
+    <p>Theo dõi tình trạng trạm và các hoạt động tự động</p>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-content">
+                <h3 id="onlineStations">-</h3>
+                <p>Trạm Online</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon danger">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="stat-content">
+                <h3 id="offlineStations">-</h3>
+                <p>Trạm Offline</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon warning">
+                <i class="fas fa-hourglass-half"></i>
+            </div>
+            <div class="stat-content">
+                <h3 id="pendingJobs">-</h3>
+                <p>Đang xử lý</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon info">
+                <i class="fas fa-sync-alt"></i>
+            </div>
+            <div class="stat-content">
+                <h3 id="recoveredToday">-</h3>
+                <p>Phục hồi hôm nay</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activities -->
+<div class="row g-4">
+    <div class="col-12 col-xl-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">🕒 Hoạt động gần đây</h5>
+            </div>
+            <div class="card-body">
+                <div id="recentActivities">
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                        <p>Đang tải dữ liệu...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">⚡ Trạng thái hệ thống</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>API CGBAS</span>
+                        <span class="badge bg-success">Hoạt động</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>API eWelink</span>
+                        <span class="badge bg-success">Hoạt động</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Scheduler</span>
+                        <span class="badge bg-success">Đang chạy</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Database</span>
+                        <span class="badge bg-success">Kết nối</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

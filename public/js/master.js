@@ -6,26 +6,60 @@ document.addEventListener('DOMContentLoaded', () => {
     const mainContent = document.querySelector('.main-content');
     const btnToggle = document.querySelector('.btn-toggle-sidebar');
     const btnLogout = document.querySelector('.btn-logout');
+    const overlay = document.getElementById('sidebarOverlay');
+
+    // Detect if mobile
+    const isMobile = () => window.innerWidth <= 768;
 
     // Toggle Sidebar
     if (btnToggle) {
-        btnToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('collapsed');
-            topbar.classList.toggle('full-width');
-            mainContent.classList.toggle('full-width');
-
-            // Save state to localStorage
-            const isCollapsed = sidebar.classList.contains('collapsed');
-            localStorage.setItem('sidebarCollapsed', isCollapsed);
+        btnToggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            if (isMobile()) {
+                // Mobile: toggle show class
+                sidebar.classList.toggle('show');
+                if (overlay) overlay.classList.toggle('show');
+            } else {
+                // Desktop: toggle collapsed class
+                sidebar.classList.toggle('collapsed');
+                topbar.classList.toggle('full-width');
+                mainContent.classList.toggle('full-width');
+                
+                // Save state to localStorage (desktop only)
+                const isCollapsed = sidebar.classList.contains('collapsed');
+                localStorage.setItem('sidebarCollapsed', isCollapsed);
+            }
         });
     }
 
-    // Restore sidebar state from localStorage
-    const sidebarCollapsed = localStorage.getItem('sidebarCollapsed');
-    if (sidebarCollapsed === 'true') {
-        sidebar.classList.add('collapsed');
-        topbar.classList.add('full-width');
-        mainContent.classList.add('full-width');
+    // Close sidebar when clicking overlay
+    if (overlay) {
+        overlay.addEventListener('click', () => {
+            sidebar.classList.remove('show');
+            overlay.classList.remove('show');
+        });
+    }
+
+    // Restore sidebar state from localStorage (desktop only)
+    if (!isMobile()) {
+        const sidebarCollapsed = localStorage.getItem('sidebarCollapsed');
+        if (sidebarCollapsed === 'true') {
+            sidebar.classList.add('collapsed');
+            topbar.classList.add('full-width');
+            mainContent.classList.add('full-width');
+        }
+    }
+
+    // Close sidebar when clicking outside on mobile
+    if (isMobile()) {
+        document.addEventListener('click', (e) => {
+            if (!sidebar.contains(e.target) && !btnToggle.contains(e.target) && !overlay.contains(e.target)) {
+                sidebar.classList.remove('show');
+                if (overlay) overlay.classList.remove('show');
+            }
+        });
     }
 
     // Logout
@@ -65,24 +99,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         text: 'Không thể đăng xuất. Vui lòng thử lại.'
                     });
                 }
-            }
-        });
-    }
-
-    // Active menu item
-    const currentPath = window.location.pathname;
-    document.querySelectorAll('.menu-item').forEach(item => {
-        const href = item.getAttribute('href');
-        if (href === currentPath || (currentPath.startsWith(href) && href !== '/')) {
-            item.classList.add('active');
-        }
-    });
-
-    // Mobile: Close sidebar when clicking outside
-    if (window.innerWidth <= 768) {
-        document.addEventListener('click', (e) => {
-            if (!sidebar.contains(e.target) && !btnToggle.contains(e.target)) {
-                sidebar.classList.remove('show');
             }
         });
     }

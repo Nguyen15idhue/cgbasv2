@@ -11,3 +11,48 @@
 .table .form-select-sm {
     min-width: 200px;
 }
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .page-header h1 {
+        font-size: 22px;
+    }
+
+    .card {
+        padding: 15px;
+    }
+
+    .form-label {
+        font-size: 13px;
+    }
+
+    .form-control,
+    .form-select {
+        font-size: 14px;
+        padding: 8px 12px;
+    }
+
+    .table .form-select-sm {
+        min-width: 150px;
+    }
+
+    .btn {
+        padding: 8px 16px;
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .card {
+        padding: 12px;
+    }
+
+    .page-header h1 {
+        font-size: 20px;
+    }
+
+    .table .form-select-sm {
+        min-width: 120px;
+        font-size: 12px;
+    }
+}

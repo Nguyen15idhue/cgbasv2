@@ -111,6 +111,57 @@
     margin: 5px 0 0 0;
 }
 
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .stat-card {
+        padding: 18px;
+        gap: 15px;
+    }
+
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 24px;
+    }
+
+    .stat-content h3 {
+        font-size: 26px;
+    }
+
+    .stat-content p {
+        font-size: 13px;
+    }
+
+    .page-header h1 {
+        font-size: 24px;
+    }
+
+    .page-header p {
+        font-size: 14px;
+    }
+
+    .card-header {
+        padding: 15px;
+    }
+
+    .card-body {
+        padding: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .stat-card {
+        padding: 15px;
+        gap: 12px;
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .stat-content h3 {
+        font-size: 22px;
+    }
+}
+
 .status-indicator {
     display: inline-flex;
     align-items: center;

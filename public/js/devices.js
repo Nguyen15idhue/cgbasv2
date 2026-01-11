@@ -1,7 +1,7 @@
 // Devices Page JavaScript
 
 // Load devices data
-async function loadDevices() {
+async function loadDevicesData() {
     try {
         const response = await fetch('/api/ewelink/devices');
         
@@ -109,9 +109,3 @@ async function controlDevice(deviceid, channel, action) {
         });
     }
 }
-
-// Init
-document.addEventListener('DOMContentLoaded', () => {
-    loadDevices();
-    setInterval(loadDevices, 30000); // Auto refresh
-});

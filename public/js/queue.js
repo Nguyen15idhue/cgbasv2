@@ -25,6 +25,13 @@ async function loadQueueData() {
         const data = await response.json();
         const tbody = document.getElementById('queueTableBody');
         
+        // Check if element exists (SPA might not have loaded yet)
+        if (!tbody) {
+            console.warn('queueTableBody element not found, retrying...');
+            setTimeout(loadQueueData, 100);
+            return;
+        }
+        
         if (!data.jobs || data.jobs.length === 0) {
             tbody.innerHTML = `
                 <tr>
@@ -37,14 +44,21 @@ async function loadQueueData() {
                     </td>
                 </tr>
             `;
-            document.getElementById('queueBadge').textContent = '0';
+            const badge = document.getElementById('queueBadge');
+            if (badge) badge.textContent = '0';
             return;
         }
 
         tbody.innerHTML = data.jobs.map(job => `
             <tr>
-                <td><strong>${job.station_id}</strong></td>
-                <td><code>${job.device_id || 'N/A'}</code></td>
+                <td>
+                    <strong>${job.stationName || job.station_id}</strong>
+                    ${job.stationName ? `<br><small class="text-muted">${job.station_id}</small>` : ''}
+                </td>
+                <td>
+                    ${job.device_name || job.device_id || 'N/A'}
+                    ${job.device_name && job.device_id ? `<br><code style="font-size: 10px;">${job.device_id}</code>` : job.device_id ? `<code>${job.device_id}</code>` : ''}
+                </td>
                 <td>${statusBadges[job.status] || job.status}</td>
                 <td><span class="badge bg-secondary">${job.retry_index || 0}</span></td>
                 <td>${job.next_run_time ? formatDateTime(job.next_run_time) : 'N/A'}</td>
@@ -57,10 +71,21 @@ async function loadQueueData() {
             </tr>
         `).join('');
 
-        document.getElementById('queueBadge').textContent = data.jobs.length;
+        const badge = document.getElementById('queueBadge');
+        if (badge) badge.textContent = data.jobs.length;
     } catch (error) {
         console.error('Error loading queue data:', error);
-        showError('Không thể tải dữ liệu hàng đợi');
+        const tbody = document.getElementById('queueTableBody');
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center text-danger">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Không thể tải dữ liệu hàng đợi
+                    </td>
+                </tr>
+            `;
+        }
     }
 }
 
@@ -95,9 +120,3 @@ function formatDateTime(dateString) {
         minute: '2-digit'
     });
 }
-
-// Auto refresh every 10 seconds
-document.addEventListener('DOMContentLoaded', () => {
-    loadQueueData();
-    setInterval(loadQueueData, 10000);
-});

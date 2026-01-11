@@ -26,3 +26,30 @@
     padding: 4px 8px;
     font-size: 12px;
 }
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .page-header h1 {
+        font-size: 22px;
+    }
+
+    .table th,
+    .table td {
+        font-size: 12px;
+        padding: 8px 5px;
+    }
+
+    .btn-group-sm .btn {
+        padding: 3px 6px;
+        font-size: 11px;
+    }
+}
+
+@media (max-width: 480px) {
+    .table th:nth-child(3),
+    .table td:nth-child(3),
+    .table th:nth-child(4),
+    .table td:nth-child(4) {
+        display: none;
+    }
+}

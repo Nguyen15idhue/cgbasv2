@@ -157,22 +157,3 @@ async function recoverStation(stationId, deviceId) {
         showError('Lỗi kết nối đến server');
     }
 }
-
-// Setup search box
-document.addEventListener('DOMContentLoaded', () => {
-    const searchBox = document.getElementById('searchInput');
-    if (searchBox) {
-        searchBox.addEventListener('input', filterStations);
-    }
-    
-    const statusFilter = document.getElementById('statusFilter');
-    if (statusFilter) {
-        statusFilter.addEventListener('change', filterStations);
-    }
-    
-    // Load initial data
-    loadStationsData();
-    
-    // Auto refresh every 30 seconds
-    setInterval(loadStationsData, 30000);
-});
