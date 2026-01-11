@@ -1,0 +1,67 @@
+<!-- Navigation Sidebar Component -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <div class="logo">
+            <i class="fas fa-satellite-dish"></i>
+            <h1>CGBAS</h1>
+        </div>
+        <p class="tagline">Recovery System</p>
+    </div>
+
+    <nav class="sidebar-nav">
+        <ul class="nav-list">
+            <li class="nav-item">
+                <a href="/views/dashboard.html" class="nav-link" data-page="dashboard">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/views/stations.html" class="nav-link" data-page="stations">
+                    <i class="fas fa-broadcast-tower"></i>
+                    <span>Quản lý Trạm</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/views/devices.html" class="nav-link" data-page="devices">
+                    <i class="fas fa-microchip"></i>
+                    <span>Thiết bị eWelink</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/views/queue.html" class="nav-link" data-page="queue">
+                    <i class="fas fa-tasks"></i>
+                    <span>Hàng đợi Phục hồi</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/views/logs.html" class="nav-link" data-page="logs">
+                    <i class="fas fa-history"></i>
+                    <span>Lịch sử & Logs</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/views/settings.html" class="nav-link" data-page="settings">
+                    <i class="fas fa-cog"></i>
+                    <span>Cài đặt</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <div class="sidebar-footer">
+        <div class="system-status">
+            <div class="status-item">
+                <i class="fas fa-circle status-online"></i>
+                <span>Hệ thống hoạt động</span>
+            </div>
+            <div class="status-item">
+                <i class="fas fa-clock"></i>
+                <span id="systemUptime">--</span>
+            </div>
+        </div>
+    </div>
+</aside>
+
+<!-- Mobile Menu Overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
