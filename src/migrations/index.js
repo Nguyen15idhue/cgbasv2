@@ -21,17 +21,54 @@ async function runMigrations() {
         console.log(`- Database "${dbName}": Đã sẵn sàng.`);
         await connection.query(`USE \`${dbName}\`;`);
 
-        // 2. Tự động đọc tất cả file .sql trong thư mục này
+        // 2. Tạo bảng tracking migrations
+        await connection.query(`
+            CREATE TABLE IF NOT EXISTS migrations (
+                filename VARCHAR(255) PRIMARY KEY,
+                executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // 3. Tự động đọc tất cả file .sql trong thư mục này
         const migrationDir = __dirname;
         const files = fs.readdirSync(migrationDir)
             .filter(file => file.endsWith('.sql'))
             .sort(); // Sắp xếp theo tên để chạy 001 trước 002
 
         for (const file of files) {
+            // Kiểm tra xem migration đã chạy chưa
+            const [existing] = await connection.query(
+                'SELECT filename FROM migrations WHERE filename = ?',
+                [file]
+            );
+
+            if (existing.length > 0) {
+                console.log(`- Migration ${file}: Đã chạy trước đó (Bỏ qua)`);
+                continue;
+            }
+
             const sqlPath = path.join(migrationDir, file);
             const sql = fs.readFileSync(sqlPath, 'utf8');
-            await connection.query(sql);
-            console.log(`- Thực thi migration: ${file} (Thành công)`);
+            
+            try {
+                await connection.query(sql);
+                await connection.query(
+                    'INSERT INTO migrations (filename) VALUES (?)',
+                    [file]
+                );
+                console.log(`- Thực thi migration: ${file} (Thành công)`);
+            } catch (err) {
+                // Bỏ qua lỗi duplicate column
+                if (err.code === 'ER_DUP_FIELDNAME') {
+                    await connection.query(
+                        'INSERT IGNORE INTO migrations (filename) VALUES (?)',
+                        [file]
+                    );
+                    console.log(`- Migration ${file}: Cột đã tồn tại (Bỏ qua)`);
+                } else {
+                    throw err;
+                }
+            }
         }
 
         console.log('Migration hoàn tất.');

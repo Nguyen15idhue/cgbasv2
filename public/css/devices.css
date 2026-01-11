@@ -1,0 +1,28 @@
+/* Devices page styles */
+.table {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.table thead {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.table thead th {
+    border: none;
+    padding: 15px;
+    font-weight: 600;
+}
+
+.table tbody td {
+    padding: 15px;
+    vertical-align: middle;
+}
+
+.btn-group-sm .btn {
+    padding: 4px 8px;
+    font-size: 12px;
+}

@@ -1,0 +1,136 @@
+/* Dashboard Page Styles */
+.stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    right: -20px;
+    top: -20px;
+    width: 150px;
+    height: 150px;
+    opacity: 0.05;
+    font-family: 'Font Awesome 6 Free';
+    font-size: 120px;
+    font-weight: 900;
+}
+
+.stat-card.online::before {
+    content: '\f058';
+}
+
+.stat-card.offline::before {
+    content: '\f071';
+}
+
+.stat-card.pending::before {
+    content: '\f254';
+}
+
+.stat-card.recovered::before {
+    content: '\f021';
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    flex-shrink: 0;
+}
+
+.stat-icon.success {
+    background: linear-gradient(135deg, #11998e, #38ef7d);
+    color: white;
+}
+
+.stat-icon.warning {
+    background: linear-gradient(135deg, #f093fb, #f5576c);
+    color: white;
+}
+
+.stat-icon.info {
+    background: linear-gradient(135deg, #4facfe, #00f2fe);
+    color: white;
+}
+
+.stat-icon.danger {
+    background: linear-gradient(135deg, #fa709a, #fee140);
+    color: white;
+}
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-content h3 {
+    font-size: 32px;
+    font-weight: 700;
+    margin: 0;
+    color: #333;
+}
+
+.stat-content p {
+    margin: 0;
+    color: #999;
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+.page-header {
+    margin-bottom: 30px;
+}
+
+.page-header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #333;
+    margin: 0;
+}
+
+.page-header p {
+    color: #999;
+    margin: 5px 0 0 0;
+}
+
+.status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-indicator i {
+    font-size: 10px;
+}
+
+.status-indicator.online {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-indicator.offline {
+    background: #f8d7da;
+    color: #721c24;
+}

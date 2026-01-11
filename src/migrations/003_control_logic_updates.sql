@@ -1,6 +1,5 @@
 -- Thêm cột để link trạm CGBAS với thiết bị eWelink (Nếu chưa có)
--- ALTER TABLE stations ADD COLUMN ewelink_device_id VARCHAR(50);
--- Đã comment vì cột này đã tồn tại rồi
+ALTER TABLE stations ADD COLUMN ewelink_device_id VARCHAR(50) DEFAULT NULL;
 
 -- Bảng quản lý tiến trình phục hồi trạm
 CREATE TABLE IF NOT EXISTS station_recovery_jobs (

@@ -44,21 +44,111 @@ app.use(session({
     name: 'cgbas_session'
 }));
 
-// 3. Static files (CSS, JS, Images) - Public
-app.use('/public', express.static(path.join(__dirname, 'public')));
-
 // ========== ROUTES ==========
 
-// PUBLIC ROUTES (Không cần đăng nhập)
-app.use(authRoutes);
-
-// PROTECTED ROUTES (Cần đăng nhập)
-// Trang chủ
-app.get('/', requireAuth, (req, res) => {
-    res.sendFile(path.join(__dirname, 'views/index.html'));
+// Log all requests for debugging
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+    next();
 });
 
-// API endpoints
+// PUBLIC ROUTES (Không cần đăng nhập)
+app.get('/login', (req, res) => {
+    if (req.session && req.session.user) {
+        return res.redirect('/dashboard');
+    }
+    res.sendFile(path.join(__dirname, '../public/views/login.html'));
+});
+
+app.use('/api/auth', authRoutes);
+
+// PROTECTED PAGE ROUTES (Cần đăng nhập)
+app.get('/', requireAuth, (req, res) => {
+    res.redirect('/dashboard');
+});
+
+app.get('/dashboard', requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/views/dashboard.html'));
+});
+
+app.get('/queue', requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/views/queue.html'));
+});
+
+app.get('/stations', requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/views/stations.html'));
+});
+
+app.get('/devices', requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/views/devices.html'));
+});
+
+app.get('/logs', requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/views/logs.html'));
+});
+
+app.get('/settings', requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/views/settings.html'));
+});
+
+// 3. Static files (CSS, JS, Images) - AFTER routes
+app.use(express.static(path.join(__dirname, '../public')));
+
+// API Dashboard stats
+app.get('/api/dashboard/stats', requireAuth, async (req, res) => {
+    try {
+        // Get station stats
+        const [stations] = await db.execute('SELECT connectStatus FROM station_dynamic_info');
+        const onlineStations = stations.filter(s => s.connectStatus === 1).length;
+        const offlineStations = stations.filter(s => s.connectStatus === 0).length;
+        
+        // Get pending jobs
+        const [jobs] = await db.execute('SELECT COUNT(*) as count FROM station_recovery_jobs WHERE status != "SUCCESS"');
+        const pendingJobs = jobs[0].count;
+        
+        // Get recovered today
+        const [recovered] = await db.execute(`
+            SELECT COUNT(*) as count FROM station_recovery_jobs 
+            WHERE status = "SUCCESS" AND DATE(updated_at) = CURDATE()
+        `);
+        const recoveredToday = recovered[0].count;
+        
+        res.json({
+            onlineStations,
+            offlineStations,
+            pendingJobs,
+            recoveredToday,
+            user: req.session.user
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// API Queue jobs
+app.get('/api/queue/jobs', requireAuth, async (req, res) => {
+    try {
+        const [jobs] = await db.execute(`
+            SELECT * FROM station_recovery_jobs 
+            ORDER BY created_at DESC
+        `);
+        res.json({ jobs });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// API Delete job
+app.delete('/api/queue/jobs/:stationId', requireAuth, async (req, res) => {
+    try {
+        await db.execute('DELETE FROM station_recovery_jobs WHERE station_id = ?', [req.params.stationId]);
+        res.json({ success: true, message: 'Job deleted' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// PROTECTED API ROUTES (Cần đăng nhập)
 app.use('/api/stations', requireAuth, stationRoutes);
 app.use('/api/ewelink', requireAuth, ewelinkRoutes);
 
@@ -107,7 +197,7 @@ async function startServer() {
         logger.info('✅ eWelink: Quét khởi tạo hoàn tất.');
 
         // 4. Khởi động Web Server
-        app.listen(PORT, () => {
+        app.listen(PORT, '0.0.0.0', () => {
             logger.info('-------------------------------------------------------');
             logger.info(`🚀 HỆ THỐNG PHỤC HỒI TRẠM ĐANG CHẠY: http://localhost:${PORT}`);
             logger.info('-------------------------------------------------------');

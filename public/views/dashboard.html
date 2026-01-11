@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - CGBAS Recovery System</title>
+    
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Master CSS -->
+    <link rel="stylesheet" href="/css/master.css">
+    
+    <style>
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+        }
+
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+
+        .stat-icon.success {
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+            color: white;
+        }
+
+        .stat-icon.warning {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            color: white;
+        }
+
+        .stat-icon.info {
+            background: linear-gradient(135deg, #4facfe, #00f2fe);
+            color: white;
+        }
+
+        .stat-icon.danger {
+            background: linear-gradient(135deg, #fa709a, #fee140);
+            color: white;
+        }
+
+        .stat-content h3 {
+            font-size: 32px;
+            font-weight: 700;
+            margin: 0;
+            color: #333;
+        }
+
+        .stat-content p {
+            margin: 0;
+            color: #999;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .page-header {
+            margin-bottom: 30px;
+        }
+
+        .page-header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #333;
+            margin: 0;
+        }
+
+        .page-header p {
+            color: #999;
+            margin: 5px 0 0 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <a href="/dashboard" class="sidebar-logo">
+                <i class="fas fa-rocket"></i>
+                <span>CGBAS System</span>
+            </a>
+        </div>
+        
+        <div class="sidebar-menu">
+            <div class="menu-section-title">Chính</div>
+            <a href="/dashboard" class="menu-item active">
+                <i class="fas fa-home"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="/queue" class="menu-item">
+                <i class="fas fa-list-ul"></i>
+                <span>Hàng đợi phục hồi</span>
+                <span class="badge bg-danger" id="queueBadge">0</span>
+            </a>
+            
+            <div class="menu-section-title">Quản lý</div>
+            <a href="/stations" class="menu-item">
+                <i class="fas fa-satellite-dish"></i>
+                <span>Danh sách trạm</span>
+            </a>
+            <a href="/devices" class="menu-item">
+                <i class="fas fa-microchip"></i>
+                <span>Thiết bị eWelink</span>
+            </a>
+            
+            <div class="menu-section-title">Hệ thống</div>
+            <a href="/logs" class="menu-item">
+                <i class="fas fa-file-alt"></i>
+                <span>Nhật ký hệ thống</span>
+            </a>
+            <a href="/settings" class="menu-item">
+                <i class="fas fa-cog"></i>
+                <span>Cài đặt</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Topbar -->
+    <div class="topbar">
+        <div class="topbar-left">
+            <button class="btn-toggle-sidebar">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="topbar-title">Dashboard</div>
+        </div>
+        
+        <div class="topbar-right">
+            <div class="user-info">
+                <div class="user-avatar">A</div>
+                <div class="user-details">
+                    <div class="user-name" id="userName">Admin</div>
+                    <div class="user-role">Quản trị viên</div>
+                </div>
+            </div>
+            <button class="btn-logout">
+                <i class="fas fa-sign-out-alt"></i> Đăng xuất
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="page-header">
+            <h1>📊 Tổng quan hệ thống</h1>
+            <p>Theo dõi tình trạng trạm và các hoạt động tự động</p>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="row g-4 mb-4">
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="stat-card">
+                    <div class="stat-icon success">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="onlineStations">-</h3>
+                        <p>Trạm Online</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="stat-card">
+                    <div class="stat-icon danger">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="offlineStations">-</h3>
+                        <p>Trạm Offline</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="stat-card">
+                    <div class="stat-icon warning">
+                        <i class="fas fa-hourglass-half"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="pendingJobs">-</h3>
+                        <p>Đang xử lý</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="stat-card">
+                    <div class="stat-icon info">
+                        <i class="fas fa-sync-alt"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="recoveredToday">-</h3>
+                        <p>Phục hồi hôm nay</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activities -->
+        <div class="row g-4">
+            <div class="col-12 col-xl-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">🕒 Hoạt động gần đây</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="recentActivities">
+                            <div class="text-center py-4 text-muted">
+                                <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                                <p>Đang tải dữ liệu...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-xl-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">⚡ Trạng thái hệ thống</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>API CGBAS</span>
+                                <span class="badge bg-success">Hoạt động</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>API eWelink</span>
+                                <span class="badge bg-success">Hoạt động</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Scheduler</span>
+                                <span class="badge bg-success">Đang chạy</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>Database</span>
+                                <span class="badge bg-success">Kết nối</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Master JS -->
+    <script src="/js/master.js"></script>
+
+    <script>
+        // Load dashboard data
+        async function loadDashboardData() {
+            try {
+                const response = await fetch('/api/dashboard/stats');
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        window.location.href = '/login';
+                        return;
+                    }
+                    throw new Error('Failed to load data');
+                }
+
+                const data = await response.json();
+                
+                // Update statistics
+                document.getElementById('onlineStations').textContent = data.onlineStations || 0;
+                document.getElementById('offlineStations').textContent = data.offlineStations || 0;
+                document.getElementById('pendingJobs').textContent = data.pendingJobs || 0;
+                document.getElementById('recoveredToday').textContent = data.recoveredToday || 0;
+                document.getElementById('queueBadge').textContent = data.pendingJobs || 0;
+
+                // Update user info
+                if (data.user) {
+                    document.getElementById('userName').textContent = data.user.username || 'Admin';
+                    const avatar = data.user.username ? data.user.username.charAt(0).toUpperCase() : 'A';
+                    document.querySelector('.user-avatar').textContent = avatar;
+                }
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+            }
+        }
+
+        // Auto refresh every 30 seconds
+        loadDashboardData();
+        setInterval(loadDashboardData, 30000);
+    </script>
+</body>
+</html>

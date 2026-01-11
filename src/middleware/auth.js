@@ -10,6 +10,9 @@ const logger = require('../utils/logger');
  *    - API request (JSON) -> Trả về 401 Unauthorized
  */
 function requireAuth(req, res, next) {
+    console.log(`[DEBUG] requireAuth triggered for: ${req.method} ${req.originalUrl}`);
+    console.log(`[DEBUG] Session exists: ${!!req.session}, User exists: ${!!req.session?.user}`);
+    
     // Kiểm tra session
     if (req.session && req.session.user) {
         // User đã đăng nhập -> Cho phép đi tiếp
@@ -25,8 +28,11 @@ function requireAuth(req, res, next) {
                          req.xhr || 
                          req.headers.accept?.includes('application/json');
 
+    console.log(`[DEBUG] Is API request: ${isApiRequest}`);
+
     if (isApiRequest) {
         // API Request -> Trả về JSON
+        console.log(`[DEBUG] Returning 401 JSON`);
         return res.status(401).json({
             success: false,
             message: 'Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.',
@@ -34,6 +40,7 @@ function requireAuth(req, res, next) {
         });
     } else {
         // Browser Request -> Redirect về trang login
+        console.log(`[DEBUG] Redirecting to /login`);
         return res.redirect('/login');
     }
 }

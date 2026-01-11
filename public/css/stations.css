@@ -1,0 +1,165 @@
+/* Stations Page Styles */
+.filter-section {
+    background: white;
+    padding: 20px 25px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.search-box {
+    position: relative;
+    max-width: 400px;
+}
+
+.search-box i {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #999;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 10px 15px 10px 45px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.search-box input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.stations-table {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.stations-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #333;
+    border-bottom: 2px solid #e0e0e0;
+    white-space: nowrap;
+}
+
+.stations-table td {
+    vertical-align: middle;
+}
+
+.station-name {
+    font-weight: 600;
+    color: #333;
+}
+
+.station-id {
+    color: #999;
+    font-size: 12px;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-badge i {
+    font-size: 10px;
+}
+
+.status-badge.online {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-badge.offline {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.btn-control {
+    padding: 6px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border: none;
+    cursor: pointer;
+}
+
+.btn-control:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-control.btn-power-on {
+    background: #28a745;
+    color: white;
+}
+
+.btn-control.btn-power-on:hover:not(:disabled) {
+    background: #218838;
+}
+
+.btn-control.btn-power-off {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-control.btn-power-off:hover:not(:disabled) {
+    background: #c82333;
+}
+
+.btn-control.btn-reboot {
+    background: #ffc107;
+    color: #000;
+}
+
+.btn-control.btn-reboot:hover:not(:disabled) {
+    background: #e0a800;
+}
+
+.satellite-count {
+    display: flex;
+    gap: 12px;
+    font-size: 13px;
+}
+
+.sat-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.sat-item .badge {
+    font-size: 11px;
+    padding: 3px 6px;
+}
+
+.table-loading {
+    text-align: center;
+    padding: 40px;
+    color: #999;
+}
+
+.no-results {
+    text-align: center;
+    padding: 40px;
+    color: #999;
+}
+
+.no-results i {
+    font-size: 48px;
+    margin-bottom: 15px;
+    color: #ddd;
+}

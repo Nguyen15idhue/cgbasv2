@@ -1,23 +1,86 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
+const db = require('../config/database');
 const router = express.Router();
-const authController = require('../controllers/authController');
-const { requireAuth } = require('../middleware/auth');
 
-// ========== PUBLIC ROUTES (Không cần đăng nhập) ==========
+// Xử lý đăng nhập (POST)
+router.post('/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
 
-// Trang đăng nhập (GET)
-router.get('/login', (req, res) => {
-    // Nếu đã đăng nhập rồi thì redirect về trang chủ
-    if (req.session && req.session.user) {
-        return res.redirect('/');
+        if (!username || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vui lòng nhập đầy đủ thông tin'
+            });
+        }
+
+        // Tìm user trong database
+        const [rows] = await db.execute(
+            'SELECT * FROM users WHERE username = ?',
+            [username]
+        );
+
+        if (rows.length === 0) {
+            return res.status(401).json({
+                success: false,
+                message: 'Tên đăng nhập hoặc mật khẩu không đúng'
+            });
+        }
+
+        const user = rows[0];
+
+        // Kiểm tra mật khẩu
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        
+        if (!isPasswordValid) {
+            return res.status(401).json({
+                success: false,
+                message: 'Tên đăng nhập hoặc mật khẩu không đúng'
+            });
+        }
+
+        // Đăng nhập thành công - Lưu vào session
+        req.session.user = {
+            id: user.id,
+            username: user.username,
+            role: user.role,
+            full_name: user.full_name
+        };
+
+        res.json({
+            success: true,
+            message: 'Đăng nhập thành công',
+            user: {
+                username: user.username,
+                role: user.role,
+                full_name: user.full_name
+            }
+        });
+
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Lỗi hệ thống. Vui lòng thử lại sau.'
+        });
     }
-    res.sendFile(path.join(__dirname, '../views/login.html'));
 });
 
-// API đăng nhập (POST)
-router.post('/api/auth/login', authController.login);
-
-// API logout
-router.post('/api/auth/logout', authController.logout);
+// Đăng xuất
+router.post('/logout', (req, res) => {
+    req.session.destroy((err) => {
+        if (err) {
+            return res.status(500).json({
+                success: false,
+                message: 'Lỗi khi đăng xuất'
+            });
+        }
+        res.json({
+            success: true,
+            message: 'Đăng xuất thành công'
+        });
+    });
+});
 
 module.exports = router;

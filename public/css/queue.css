@@ -1,0 +1,68 @@
+/* Queue Page Styles */
+.queue-table {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.queue-table table {
+    margin: 0;
+}
+
+.queue-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #333;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.badge-status {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.badge-pending {
+    background: #ffc107;
+    color: #000;
+}
+
+.badge-running {
+    background: #17a2b8;
+    color: white;
+}
+
+.badge-checking {
+    background: #6f42c1;
+    color: white;
+}
+
+.badge-success {
+    background: #28a745;
+    color: white;
+}
+
+.badge-failed {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-action {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    transition: all 0.2s ease;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #999;
+}
+
+.empty-state i {
+    font-size: 64px;
+    margin-bottom: 20px;
+    color: #ddd;
+}
