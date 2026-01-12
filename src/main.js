@@ -25,7 +25,7 @@ const stationRoutes = require('./routes/stationRoutes');
 const ewelinkRoutes = require('./routes/ewelinkRoutes');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 // ========== CẤU HÌNH MIDDLEWARE ==========
 

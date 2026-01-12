@@ -29,7 +29,7 @@ RUN npm ci
 COPY . .
 
 # Expose port
-EXPOSE 3000
+EXPOSE 3001
 
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
@@ -75,7 +75,7 @@ RUN mkdir -p /app/src/logs && chown -R nodejs:nodejs /app/src/logs
 USER nodejs
 
 # Expose port
-EXPOSE 3000
+EXPOSE 3001
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
