@@ -50,8 +50,8 @@ app.use(session({
     cookie: {
         maxAge: 24 * 60 * 60 * 1000, // 24 giờ - Auto logout nếu không hoạt động
         httpOnly: true,                // Bảo mật (JS không truy cập được)
-        secure: process.env.NODE_ENV === 'production', // HTTPS trong production
-        sameSite: 'strict'             // CSRF protection
+        secure: false,                 // Set false vì chưa có HTTPS
+        sameSite: 'lax'                // 'strict' có thể block cross-origin, dùng 'lax'
     },
     name: 'cgbas_session'
     // NOTE: Auto-recovery scheduler chạy 24/7 độc lập với session
