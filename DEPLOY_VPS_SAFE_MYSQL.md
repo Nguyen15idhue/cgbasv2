@@ -41,7 +41,7 @@ docker-compose --version
 **Option A: Git (Khuyến nghị)**
 ```bash
 cd /opt
-git clone <repository_url> cgbasv2
+git clone https://github.com/Nguyen15idhue/cgbasv2.git cgbasv2
 cd cgbasv2
 ```
 
