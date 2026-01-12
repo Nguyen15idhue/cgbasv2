@@ -3,6 +3,7 @@ const session = require('express-session');
 const cors = require('cors');
 const path = require('path');
 const runMigrations = require('./migrations/index');
+const initDB = require('./utils/init-db'); // Import init-db
 const { initCronJobs } = require('./utils/scheduler');
 const logger = require('./utils/logger');
 
@@ -47,11 +48,14 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        maxAge: 24 * 60 * 60 * 1000, // 24 giờ
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production' // HTTPS trong production
+        maxAge: 24 * 60 * 60 * 1000, // 24 giờ - Auto logout nếu không hoạt động
+        httpOnly: true,                // Bảo mật (JS không truy cập được)
+        secure: process.env.NODE_ENV === 'production', // HTTPS trong production
+        sameSite: 'strict'             // CSRF protection
     },
     name: 'cgbas_session'
+    // NOTE: Auto-recovery scheduler chạy 24/7 độc lập với session
+    // Nếu session hết hạn, recovery vẫn tiếp tục hoạt động ở backend
 }));
 
 // ========== ROUTES ==========
@@ -60,14 +64,14 @@ app.use(session({
 app.get('/health', (req, res) => {
     res.status(200).json({ 
         status: 'ok', 
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
         uptime: process.uptime()
     });
 });
 
 // Log all requests for debugging
 app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+    console.log(`[${new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}] ${req.method} ${req.originalUrl}`);
     next();
 });
 
@@ -207,6 +211,9 @@ async function initialSyncEwelink() {
 
 async function startServer() {
     try {
+        // 0. Khởi tạo bảng users và tài khoản admin (nếu chưa có)
+        await initDB();
+
         // 1. Khởi tạo Database (Bao gồm bảng jobs mới)
         await runMigrations();
 
@@ -239,6 +246,7 @@ async function startServer() {
 
     } catch (error) {
         logger.error('❌ LỖI KHỞI ĐỘNG: ' + error.message);
+        console.error('Full error:', error);
         process.exit(1);
     }
 }

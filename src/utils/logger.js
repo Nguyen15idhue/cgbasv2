@@ -2,15 +2,29 @@ const winston = require('winston');
 const DailyRotateFile = require('winston-daily-rotate-file');
 const path = require('path');
 
+// Custom timestamp format với timezone GMT+7
+const vietnamTimestamp = () => {
+    return new Date().toLocaleString('vi-VN', { 
+        timeZone: 'Asia/Ho_Chi_Minh',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    }).replace(/(\d+)\/(\d+)\/(\d+),/, '$3-$2-$1');
+};
+
 // Định dạng log tùy chỉnh
 const logFormat = winston.format.combine(
-    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+    winston.format.timestamp({ format: vietnamTimestamp }),
     winston.format.errors({ stack: true }),
     winston.format.printf(({ timestamp, level, message, stack }) => {
         if (stack) {
-            return `[${timestamp}] ${level.toUpperCase()}: ${message}\n${stack}`;
+            return `[${timestamp}] ${level}: ${message}\n${stack}`;
         }
-        return `[${timestamp}] ${level.toUpperCase()}: ${message}`;
+        return `[${timestamp}] ${level}: ${message}`;
     })
 );
 
@@ -44,7 +58,7 @@ const logger = winston.createLogger({
         new winston.transports.Console({
             format: winston.format.combine(
                 winston.format.colorize(),
-                winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+                winston.format.timestamp({ format: vietnamTimestamp }),
                 winston.format.printf(({ timestamp, level, message }) => {
                     return `[${timestamp}] ${level}: ${message}`;
                 })

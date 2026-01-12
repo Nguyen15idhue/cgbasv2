@@ -175,6 +175,10 @@ function initializePage(path) {
             }
             break;
         case '/stations':
+            // Initialize pagination first
+            if (typeof initPagination === 'function') {
+                initPagination();
+            }
             if (typeof loadStationsData === 'function') {
                 loadStationsData();
                 // Setup search
@@ -187,6 +191,10 @@ function initializePage(path) {
             }
             break;
         case '/devices':
+            // Initialize pagination first
+            if (typeof initDevicesPagination === 'function') {
+                initDevicesPagination();
+            }
             if (typeof loadDevicesData === 'function') {
                 loadDevicesData();
                 // Auto refresh every 30 seconds
@@ -194,6 +202,10 @@ function initializePage(path) {
             }
             break;
         case '/logs':
+            // Initialize pagination first
+            if (typeof initLogsPagination === 'function') {
+                initLogsPagination();
+            }
             if (typeof loadApiStats === 'function') {
                 loadApiStats();
                 // Auto refresh every 30 seconds
@@ -201,6 +213,10 @@ function initializePage(path) {
             }
             break;
         case '/settings':
+            // Initialize pagination first
+            if (typeof initSettingsPagination === 'function') {
+                initSettingsPagination();
+            }
             if (typeof loadSettingsData === 'function') {
                 loadSettingsData();
             }

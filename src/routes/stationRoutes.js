@@ -2,9 +2,31 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
 
-// API: Lấy danh sách trạm với thông tin đầy đủ
+// API: Lấy danh sách trạm với thông tin đầy đủ (có pagination)
 router.get('/list', async (req, res) => {
     try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const search = req.query.search || '';
+        const offset = (page - 1) * limit;
+
+        // Build search condition
+        let searchCondition = '';
+        let searchParams = [];
+        if (search) {
+            searchCondition = 'WHERE s.stationName LIKE ? OR s.identificationName LIKE ? OR s.id LIKE ?';
+            const searchPattern = `%${search}%`;
+            searchParams = [searchPattern, searchPattern, searchPattern];
+        }
+
+        // Get total count
+        const [countResult] = await db.query(
+            `SELECT COUNT(*) as total FROM stations s ${searchCondition}`,
+            searchParams
+        );
+        const total = countResult[0].total;
+
+        // Get paginated data
         const [rows] = await db.query(`
             SELECT 
                 s.id,
@@ -23,9 +45,19 @@ router.get('/list', async (req, res) => {
                 d.updateTime as lastUpdate
             FROM stations s
             LEFT JOIN station_dynamic_info d ON s.id = d.stationId
+            ${searchCondition}
             ORDER BY s.stationName ASC
-        `);
-        res.json({ success: true, total: rows.length, stations: rows });
+            LIMIT ? OFFSET ?
+        `, [...searchParams, limit, offset]);
+
+        res.json({ 
+            success: true, 
+            total: total,
+            page: page,
+            limit: limit,
+            totalPages: Math.ceil(total / limit),
+            stations: rows 
+        });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
@@ -109,6 +141,54 @@ router.post('/update-mapping', async (req, res) => {
         res.json({ 
             success: true, 
             message: 'Đã cập nhật ánh xạ thiết bị thành công' 
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// API: Xóa ánh xạ thiết bị eWeLink cho trạm
+// API: Xóa ánh xạ thiết bị của trạm
+router.delete('/mapping/:stationId', async (req, res) => {
+    try {
+        const { stationId } = req.params;
+
+        if (!stationId) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Thiếu thông tin stationId' 
+            });
+        }
+
+        // Kiểm tra trạm có tồn tại không
+        const [station] = await db.execute(
+            'SELECT id, stationName, ewelink_device_id FROM stations WHERE id = ?',
+            [stationId]
+        );
+
+        if (station.length === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Không tìm thấy trạm' 
+            });
+        }
+
+        if (!station[0].ewelink_device_id) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Trạm này chưa có ánh xạ thiết bị' 
+            });
+        }
+
+        // Xóa ánh xạ
+        await db.execute(
+            'UPDATE stations SET ewelink_device_id = NULL WHERE id = ?',
+            [stationId]
+        );
+
+        res.json({ 
+            success: true, 
+            message: 'Đã xóa ánh xạ thiết bị thành công' 
         });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });

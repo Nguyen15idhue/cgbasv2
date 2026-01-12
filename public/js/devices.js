@@ -1,9 +1,44 @@
 // Devices Page JavaScript
 
-// Load devices data
+// Use window scope to avoid redeclaration errors in SPA
+if (typeof window.devicesCurrentPage === 'undefined') {
+    window.devicesCurrentPage = 1;
+    window.devicesCurrentLimit = 20;
+    window.devicesSearchKeyword = '';
+    window.devicesPagination = null;
+}
+
+// Initialize pagination
+function initDevicesPagination() {
+    console.log('[Devices] Initializing pagination...');
+    const container = document.getElementById('devicesPagination');
+    if (!container) {
+        console.error('[Devices] Pagination container not found!');
+        return;
+    }
+    window.devicesPagination = new Pagination('devicesPagination', {
+        limit: window.devicesCurrentLimit,
+        onPageChange: (page, limit) => {
+            console.log('[Devices] Page changed:', page, limit);
+            window.devicesCurrentPage = page;
+            window.devicesCurrentLimit = limit;
+            loadDevicesData();
+        }
+    });
+    console.log('[Devices] Pagination initialized');
+}
+
+// Load devices data with pagination
 async function loadDevicesData() {
     try {
-        const response = await fetch('/api/ewelink/devices');
+        console.log('[Devices] Loading data, page:', window.devicesCurrentPage, 'limit:', window.devicesCurrentLimit);
+        const params = new URLSearchParams({
+            page: window.devicesCurrentPage,
+            limit: window.devicesCurrentLimit,
+            search: window.devicesSearchKeyword
+        });
+        
+        const response = await fetch(`/api/ewelink/devices?${params}`);
         
         if (!response.ok) {
             if (response.status === 401) {
@@ -14,9 +49,22 @@ async function loadDevicesData() {
         }
 
         const result = await response.json();
+        console.log('[Devices] Received data:', result);
         const devices = result.data || [];
         
         renderDevices(devices);
+        
+        // Update pagination
+        if (window.devicesPagination) {
+            window.devicesPagination.update(result.page, result.totalPages, result.total);
+        }
+        
+        // Update total count
+        const totalEl = document.getElementById('totalDevices');
+        if (totalEl) {
+            totalEl.textContent = result.total;
+        }
+        
     } catch (error) {
         console.error('Error loading devices:', error);
         document.getElementById('devicesTableBody').innerHTML = `
@@ -28,6 +76,14 @@ async function loadDevicesData() {
             </tr>
         `;
     }
+}
+
+// Filter devices
+function filterDevices() {
+    const keyword = document.getElementById('deviceSearchInput')?.value.toLowerCase() || '';
+    window.devicesSearchKeyword = keyword;
+    window.devicesCurrentPage = 1; // Reset to first page
+    loadDevicesData();
 }
 
 // Render devices table

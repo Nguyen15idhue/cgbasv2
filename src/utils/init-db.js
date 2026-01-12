@@ -6,10 +6,10 @@ const bcrypt = require('bcryptjs');
 // Lấy config trực tiếp từ process.env
 const config = {
     MYSQL: {
-        HOST: process.env.MYSQL_HOST || 'localhost',
-        USER: process.env.MYSQL_USER || 'root',
-        PASSWORD: process.env.MYSQL_PASSWORD || '',
-        DATABASE: process.env.MYSQL_DATABASE || 'cgbas_db',
+        HOST: process.env.DB_HOST || process.env.MYSQL_HOST || 'localhost',
+        USER: process.env.DB_USER || process.env.MYSQL_USER || 'root',
+        PASSWORD: process.env.DB_PASS || process.env.MYSQL_PASSWORD || '',
+        DATABASE: process.env.DB_NAME || process.env.MYSQL_DATABASE || 'cgbas_db',
         PORT: process.env.MYSQL_PORT || 3306
     }
 };
@@ -74,11 +74,12 @@ async function initDB() {
 
     } catch (error) {
         console.error("❌ Lỗi khởi tạo DB:", error.message);
+        throw error; // Re-throw để caller biết có lỗi
     } finally {
         await connection.end();
         console.log("👋 Đã đóng kết nối.");
     }
 }
 
-// Chạy hàm
-initDB();
+// Export để sử dụng trong main.js
+module.exports = initDB;

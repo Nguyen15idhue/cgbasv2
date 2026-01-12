@@ -1,22 +1,35 @@
 <div class="page-header">
     <h1><i class="fas fa-plug"></i> Thiết bị eWelink</h1>
+    <div class="header-actions">
+        <input type="text" class="form-control" id="deviceSearchInput" placeholder="Tìm kiếm thiết bị..." onkeyup="filterDevices()">
+    </div>
 </div>
 
-<div class="table-responsive">
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Tên thiết bị</th>
-                <th>Device ID</th>
-                <th>Kênh 1</th>
-                <th>Kênh 2</th>
-                <th>Điện áp</th>
-                <th>Cập nhật</th>
-                <th>Thao tác</th>
-            </tr>
-        </thead>
-        <tbody id="devicesTableBody">
-            <!-- Loading -->
-        </tbody>
-    </table>
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-list"></i> Danh sách thiết bị (<span id="totalDevices">0</span>)</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Tên thiết bị</th>
+                        <th>Device ID</th>
+                        <th>Kênh 1</th>
+                        <th>Kênh 2</th>
+                        <th>Điện áp</th>
+                        <th>Cập nhật</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="devicesTableBody">
+                    <!-- Loading -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer">
+        <div id="devicesPagination"></div>
+    </div>
 </div>

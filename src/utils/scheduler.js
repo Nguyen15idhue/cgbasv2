@@ -6,12 +6,24 @@ const { checkAndTriggerRecovery } = require('./autoMonitor'); // Import bộ gi�
 
 let isSyncing = false;
 
+// Filter out node-cron warnings về missed execution
+// (warnings này không cần thiết vì ta đã handle bằng isSyncing flag)
+const originalWarn = console.warn;
+console.warn = function(...args) {
+    const msg = args.join(' ');
+    if (msg.includes('[NODE-CRON]') && msg.includes('missed execution')) {
+        return; // Bỏ qua warning này
+    }
+    originalWarn.apply(console, args);
+};
+
 function initCronJobs() {
-    // Tác vụ 1: Chạy mỗi 15 giây (Vệ tinh + Giám sát phục hồi)
-    cron.schedule('*/15 * * * * *', async () => {
+    // Tác vụ 1: Chạy mỗi 20 giây (Vệ tinh + Giám sát phục hồi)
+    // Tăng từ 15s lên 20s để tránh overlap khi API chậm
+    cron.schedule('*/20 * * * * *', async () => {
         if (isSyncing) return;
         isSyncing = true;
-        const now = new Date().toLocaleTimeString();
+        const now = new Date().toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
         
         try {
             const ids = await getAllStationIds();
@@ -44,7 +56,7 @@ function initCronJobs() {
         }
     });
 
-    logger.info('🚀 Scheduler: 15s (Satellite & Recovery Monitor) | 1h (Station List).');
+    logger.info('🚀 Scheduler: 20s (Satellite & Recovery Monitor) | 1h (Station List).');
 }
 
 module.exports = { initCronJobs };

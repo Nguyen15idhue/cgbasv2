@@ -17,6 +17,11 @@ COPY package*.json ./
 # ================================
 FROM base AS development
 
+# Set timezone to Asia/Ho_Chi_Minh (GMT+7)
+RUN apk add --no-cache tzdata && \
+    cp /usr/share/zoneinfo/Asia/Ho_Chi_Minh /etc/localtime && \
+    echo "Asia/Ho_Chi_Minh" > /etc/timezone
+
 # Install all dependencies (including devDependencies)
 RUN npm ci
 
@@ -46,8 +51,10 @@ RUN npm ci --only=production && \
 # ================================
 FROM node:20-alpine AS production
 
-# Install tini for proper signal handling
-RUN apk add --no-cache tini
+# Install tini for proper signal handling and set timezone
+RUN apk add --no-cache tini tzdata && \
+    cp /usr/share/zoneinfo/Asia/Ho_Chi_Minh /etc/localtime && \
+    echo "Asia/Ho_Chi_Minh" > /etc/timezone
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \

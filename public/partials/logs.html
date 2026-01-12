@@ -9,20 +9,30 @@
     </div>
 </div>
 
-<div class="table-responsive">
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Thời gian</th>
-                <th>Endpoint</th>
-                <th>Device ID</th>
-                <th>Outlet</th>
-                <th>Action</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody id="logsTableBody">
-            <!-- Loading -->
-        </tbody>
-    </table>
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-history"></i> Lịch sử hoạt động
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Thời gian</th>
+                        <th>Endpoint</th>
+                        <th>Thiết bị</th>
+                        <th>Outlet</th>
+                        <th>Action</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="logsTableBody">
+                    <!-- Loading -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer">
+        <div id="logsPagination"></div>
+    </div>
 </div>

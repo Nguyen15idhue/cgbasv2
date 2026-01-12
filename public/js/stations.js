@@ -1,14 +1,34 @@
 // Stations Page JavaScript
 
-let allStations = [];
-let filteredStations = [];
+let currentPage = 1;
+let currentLimit = 20;
+let searchKeyword = '';
+let pagination = null;
 
-// Load stations data
+// Initialize pagination
+function initPagination() {
+    pagination = new Pagination('stationsPagination', {
+        limit: currentLimit,
+        onPageChange: (page, limit) => {
+            currentPage = page;
+            currentLimit = limit;
+            loadStationsData();
+        }
+    });
+}
+
+// Load stations data with pagination
 async function loadStationsData() {
     try {
         showTableLoading();
         
-        const response = await fetch('/api/stations/list');
+        const params = new URLSearchParams({
+            page: currentPage,
+            limit: currentLimit,
+            search: searchKeyword
+        });
+        
+        const response = await fetch(`/api/stations/list?${params}`);
         
         if (!response.ok) {
             if (response.status === 401) {
@@ -19,10 +39,20 @@ async function loadStationsData() {
         }
 
         const data = await response.json();
-        allStations = data.stations || [];
-        filteredStations = [...allStations];
         
-        renderStationsTable();
+        renderStationsTable(data.stations || []);
+        
+        // Update pagination
+        if (pagination) {
+            pagination.update(data.page, data.totalPages, data.total);
+        }
+        
+        // Update total count
+        const totalEl = document.getElementById('totalStations');
+        if (totalEl) {
+            totalEl.textContent = data.total;
+        }
+        
     } catch (error) {
         console.error('Error loading stations:', error);
         showError('Không thể tải danh sách trạm');
@@ -30,11 +60,11 @@ async function loadStationsData() {
 }
 
 // Render stations table
-function renderStationsTable() {
+function renderStationsTable(stations) {
     const tbody = document.getElementById('stationsTableBody');
     if (!tbody) return;
     
-    if (filteredStations.length === 0) {
+    if (stations.length === 0) {
         tbody.innerHTML = `
             <tr>
                 <td colspan="7" class="text-center py-5">
@@ -47,7 +77,7 @@ function renderStationsTable() {
         return;
     }
 
-    tbody.innerHTML = filteredStations.map(station => `
+    tbody.innerHTML = stations.map(station => `
         <tr>
             <td>
                 <div><strong>${station.stationName || 'N/A'}</strong></div>
@@ -110,20 +140,9 @@ function showError(message) {
 // Filter stations (Realtime)
 function filterStations() {
     const keyword = document.getElementById('searchInput').value.toLowerCase();
-    
-    if (!keyword.trim()) {
-        filteredStations = [...allStations];
-    } else {
-        filteredStations = allStations.filter(station => {
-            return (
-                (station.stationName && station.stationName.toLowerCase().includes(keyword)) ||
-                (station.id && station.id.toLowerCase().includes(keyword)) ||
-                (station.identificationName && station.identificationName.toLowerCase().includes(keyword))
-            );
-        });
-    }
-    
-    renderStationsTable();
+    searchKeyword = keyword;
+    currentPage = 1; // Reset to first page
+    loadStationsData();
 }
 
 // Recover station
