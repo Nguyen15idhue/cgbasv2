@@ -51,16 +51,28 @@ async function login(req, res) {
             full_name: user.full_name
         };
 
-        logger.info(`[Auth] User ${username} đăng nhập thành công từ ${req.ip}`);
-
-        res.json({
-            success: true,
-            message: 'Đăng nhập thành công',
-            user: {
-                username: user.username,
-                fullName: user.full_name,
-                role: user.role
+        // Force save session (quan trọng với Docker)
+        req.session.save((err) => {
+            if (err) {
+                logger.error('[Auth] Lỗi lưu session: ' + err.message);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Lỗi lưu phiên đăng nhập'
+                });
             }
+
+            logger.info(`[Auth] User ${username} đăng nhập thành công từ ${req.ip}`);
+            console.log('[DEBUG] Session saved:', req.session.user);
+
+            res.json({
+                success: true,
+                message: 'Đăng nhập thành công',
+                user: {
+                    username: user.username,
+                    fullName: user.full_name,
+                    role: user.role
+                }
+            });
         });
 
     } catch (error) {

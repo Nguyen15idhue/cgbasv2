@@ -11,7 +11,10 @@ const logger = require('../utils/logger');
  */
 function requireAuth(req, res, next) {
     console.log(`[DEBUG] requireAuth triggered for: ${req.method} ${req.originalUrl}`);
+    console.log(`[DEBUG] Session ID: ${req.sessionID}`);
     console.log(`[DEBUG] Session exists: ${!!req.session}, User exists: ${!!req.session?.user}`);
+    console.log(`[DEBUG] Session user data:`, req.session?.user);
+    console.log(`[DEBUG] Cookies:`, req.headers.cookie);
     
     // Kiểm tra session
     if (req.session && req.session.user) {
