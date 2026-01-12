@@ -233,15 +233,16 @@ async function startServer() {
             logger.info('✅ CGBAS: Đồng bộ thành công.');
         }
 
-        // eWelink Initial (Chỉ lấy info thiết bị, không chạy cron sync 1p nữa)
-        await initialSyncEwelink();
-        logger.info('✅ eWelink: Quét khởi tạo hoàn tất.');
-
-        // 4. Khởi động Web Server
+        // 4. Khởi động Web Server TRƯỚC (để không bị block)
         app.listen(PORT, '0.0.0.0', () => {
             logger.info('-------------------------------------------------------');
             logger.info(`🚀 HỆ THỐNG PHỤC HỒI TRẠM ĐANG CHẠY: http://localhost:${PORT}`);
             logger.info('-------------------------------------------------------');
+            
+            // eWelink Initial chạy ASYNC sau khi server đã sẵn sàng
+            initialSyncEwelink()
+                .then(() => logger.info('✅ eWelink: Quét khởi tạo hoàn tất.'))
+                .catch(err => logger.error('[eWelink Init] Lỗi không nghiêm trọng: ' + err.message));
         });
 
     } catch (error) {
