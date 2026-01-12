@@ -16,7 +16,7 @@ services:
       - mysql_data:/var/lib/mysql
       - ./src/migrations:/docker-entrypoint-initdb.d:ro
     ports:
-      - "3306:3306"
+      - "3307:3306"  # Changed to 3307 to avoid conflict with existing MySQL
     networks:
       - cgbas-network
     healthcheck:
@@ -35,7 +35,7 @@ services:
     container_name: cgbas-app-dev
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
       TZ: Asia/Ho_Chi_Minh
       NODE_ENV: development
@@ -73,7 +73,7 @@ services:
     container_name: cgbas-app-prod
     restart: always
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
       TZ: Asia/Ho_Chi_Minh
       NODE_ENV: production
