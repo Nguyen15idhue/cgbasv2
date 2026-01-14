@@ -18,9 +18,9 @@ console.warn = function(...args) {
 };
 
 function initCronJobs() {
-    // Tác vụ 1: Chạy mỗi 20 giây (Vệ tinh + Giám sát phục hồi)
-    // Tăng từ 15s lên 20s để tránh overlap khi API chậm
-    cron.schedule('*/20 * * * * *', async () => {
+    // Tác vụ 1: Chạy mỗi 5 giây (Vệ tinh + Giám sát phục hồi)
+    // Tăng tần suất để phát hiện trạm online nhanh hơn và hỗ trợ cơ chế kiểm tra lồng
+    cron.schedule('*/5 * * * * *', async () => {
         if (isSyncing) return;
         isSyncing = true;
         const now = new Date().toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
@@ -56,7 +56,7 @@ function initCronJobs() {
         }
     });
 
-    logger.info('🚀 Scheduler: 20s (Satellite & Recovery Monitor) | 1h (Station List).');
+    logger.info('🚀 Scheduler: 5s (Satellite & Recovery Monitor) | 1h (Station List).');
 }
 
 module.exports = { initCronJobs };

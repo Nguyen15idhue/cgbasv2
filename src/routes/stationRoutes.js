@@ -195,67 +195,6 @@ router.delete('/mapping/:stationId', async (req, res) => {
     }
 });
 
-// API: Lấy lịch sử phục hồi trạm
-router.get('/recovery-history', async (req, res) => {
-    try {
-        const { stationId, status, limit = 50, offset = 0 } = req.query;
-
-        let query = `
-            SELECT 
-                h.*,
-                s.stationName,
-                s.identificationName
-            FROM station_recovery_history h
-            LEFT JOIN stations s ON h.station_id = s.id
-            WHERE 1=1
-        `;
-        const params = [];
-
-        // Filter theo station
-        if (stationId) {
-            query += ' AND h.station_id = ?';
-            params.push(stationId);
-        }
-
-        // Filter theo status
-        if (status) {
-            query += ' AND h.status = ?';
-            params.push(status);
-        }
-
-        query += ' ORDER BY h.completed_at DESC LIMIT ? OFFSET ?';
-        params.push(parseInt(limit), parseInt(offset));
-
-        const [rows] = await db.query(query, params);
-
-        // Lấy tổng số records
-        let countQuery = 'SELECT COUNT(*) as total FROM station_recovery_history h WHERE 1=1';
-        const countParams = [];
-        if (stationId) {
-            countQuery += ' AND station_id = ?';
-            countParams.push(stationId);
-        }
-        if (status) {
-            countQuery += ' AND status = ?';
-            countParams.push(status);
-        }
-        const [countRows] = await db.query(countQuery, countParams);
-
-        res.json({ 
-            success: true, 
-            total: countRows[0].total,
-            data: rows,
-            pagination: {
-                limit: parseInt(limit),
-                offset: parseInt(offset),
-                hasMore: countRows[0].total > parseInt(offset) + rows.length
-            }
-        });
-    } catch (err) {
-        res.status(500).json({ success: false, message: err.message });
-    }
-});
-
 // API: Lấy thống kê lịch sử phục hồi
 router.get('/recovery-stats', async (req, res) => {
     try {
@@ -307,6 +246,76 @@ router.get('/recovery-stats', async (req, res) => {
         });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// API: Lấy lịch sử phục hồi trạm (có pagination và filter)
+router.get('/recovery-history', async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const status = req.query.status || '';
+        const offset = (page - 1) * limit;
+
+        // Build filter condition
+        let filterCondition = '';
+        let filterParams = [];
+        if (status) {
+            filterCondition = 'WHERE h.status = ?';
+            filterParams = [status];
+        }
+
+        // Get statistics
+        const [statsResult] = await db.query(`
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'SUCCESS' THEN 1 ELSE 0 END) as success,
+                SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) as failed,
+                ROUND(AVG(total_duration_minutes), 1) as avgDuration
+            FROM station_recovery_history
+        `);
+
+        // Get total count for filtered data
+        const [countResult] = await db.query(
+            `SELECT COUNT(*) as total FROM station_recovery_history h ${filterCondition}`,
+            filterParams
+        );
+        const total = countResult[0].total;
+
+        // Get paginated history with station and device info
+        const [rows] = await db.query(`
+            SELECT 
+                h.id,
+                h.station_id,
+                h.device_id,
+                h.status,
+                h.retry_count,
+                h.total_duration_minutes,
+                h.failure_reason,
+                h.started_at,
+                h.completed_at,
+                s.stationName as station_name,
+                s.identificationName as station_identification
+            FROM station_recovery_history h
+            LEFT JOIN stations s ON h.station_id = s.id
+            ${filterCondition}
+            ORDER BY h.completed_at DESC
+            LIMIT ? OFFSET ?
+        `, [...filterParams, limit, offset]);
+
+        res.json({
+            stats: statsResult[0] || { total: 0, success: 0, failed: 0, avgDuration: 0 },
+            history: rows,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
+    } catch (error) {
+        console.error('Error loading recovery history:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 

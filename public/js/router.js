@@ -9,6 +9,7 @@ const routes = {
     '/queue': '/partials/queue.html',
     '/stations': '/partials/stations.html',
     '/devices': '/partials/devices.html',
+    '/history': '/partials/history.html',
     '/logs': '/partials/logs.html',
     '/settings': '/partials/settings.html'
 };
@@ -39,6 +40,10 @@ function clearAllIntervals() {
         clearInterval(window.logsInterval);
         window.logsInterval = null;
     }
+    if (window.historyInterval) {
+        clearInterval(window.historyInterval);
+        window.historyInterval = null;
+    }
 }
 
 // Page configurations
@@ -62,6 +67,11 @@ const pageConfig = {
         title: 'Thiết bị eWelink',
         css: '/css/devices.css',
         js: '/js/devices.js'
+    },
+    '/history': {
+        title: 'Lịch sử phục hồi',
+        css: '/css/history.css',
+        js: '/js/history.js'
     },
     '/logs': {
         title: 'Nhật ký hệ thống',
@@ -210,6 +220,17 @@ function initializePage(path) {
                 loadApiStats();
                 // Auto refresh every 30 seconds
                 window.logsInterval = setInterval(loadApiStats, 30000);
+            }
+            break;
+        case '/history':
+            // Initialize pagination first
+            if (typeof initHistoryPagination === 'function') {
+                initHistoryPagination();
+            }
+            if (typeof loadHistoryData === 'function') {
+                loadHistoryData();
+                // Auto refresh every 30 seconds
+                window.historyInterval = setInterval(loadHistoryData, 30000);
             }
             break;
         case '/settings':

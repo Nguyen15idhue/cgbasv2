@@ -88,7 +88,7 @@ app.use('/api/auth', authRoutes);
 // Serve partials for SPA
 app.get('/partials/:page', requireAuth, (req, res) => {
     const pageName = req.params.page;
-    const allowedPages = ['dashboard', 'queue', 'stations', 'devices', 'logs', 'settings'];
+    const allowedPages = ['dashboard', 'queue', 'stations', 'devices', 'history', 'logs', 'settings'];
     
     if (allowedPages.includes(pageName)) {
         res.sendFile(path.join(__dirname, `../public/partials/${pageName}.html`));
@@ -119,6 +119,10 @@ app.get('/devices', requireAuth, (req, res) => {
 });
 
 app.get('/logs', requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/index.html'));
+});
+
+app.get('/history', requireAuth, (req, res) => {
     res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 

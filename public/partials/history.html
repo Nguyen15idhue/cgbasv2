@@ -1,0 +1,62 @@
+<div class="page-header">
+    <h1><i class="fas fa-clock-rotate-left"></i> Lịch sử phục hồi trạm</h1>
+</div>
+
+<div class="stats-cards">
+    <div class="stat-card">
+        <h3 id="totalHistory">0</h3>
+        <p>Tổng số lịch sử</p>
+    </div>
+    <div class="stat-card success">
+        <h3 id="successCount">0</h3>
+        <p>Thành công</p>
+    </div>
+    <div class="stat-card danger">
+        <h3 id="failedCount">0</h3>
+        <p>Thất bại</p>
+    </div>
+    <div class="stat-card">
+        <h3 id="avgDuration">0</h3>
+        <p>Thời gian TB (phút)</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-history"></i> Lịch sử phục hồi</span>
+        <div class="filter-group">
+            <select id="statusFilter" class="form-control form-control-sm">
+                <option value="">Tất cả trạng thái</option>
+                <option value="SUCCESS">Thành công</option>
+                <option value="FAILED">Thất bại</option>
+            </select>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Thời gian</th>
+                        <th>Trạm</th>
+                        <th>Thiết bị eWeLink</th>
+                        <th>Trạng thái</th>
+                        <th>Số lần thử</th>
+                        <th>Thời gian (phút)</th>
+                        <th>Lý do</th>
+                    </tr>
+                </thead>
+                <tbody id="historyTableBody">
+                    <tr>
+                        <td colspan="7" class="text-center">
+                            <i class="fas fa-spinner fa-spin"></i> Đang tải dữ liệu...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer">
+        <div id="historyPagination"></div>
+    </div>
+</div>
