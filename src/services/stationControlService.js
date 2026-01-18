@@ -4,7 +4,9 @@ const { sleep, retryAction } = require('../utils/helper');
 const logger = require('../utils/logger');
 const db = require('../config/database');
 
-const RETRY_INTERVALS = [2, 5, 10, 15, 30, 60]; // Phút chờ (loại bỏ 7 phút)
+// CƠ CHẾ RETRY THÔNG MINH: Phân biệt mất điện vs lỗi phần mềm
+const RETRY_INTERVALS_FAST = [2, 3, 5, 10, 15, 20];      // Khi eWeLink ONLINE (lỗi phần mềm/treo)
+const RETRY_INTERVALS_SLOW = [10, 15, 30, 60, 120, 240]; // Khi eWeLink OFFLINE (mất điện)
 const MAX_RETRIES = 6; // Giới hạn số lần thử để tránh vòng lặp vô hạn
 
 /**
@@ -33,6 +35,12 @@ async function finishSuccess(station_id, device_id, retry_index, reason = null) 
     
     await saveToHistory(station_id, device_id, 'SUCCESS', retry_index + 1, null);
     await db.execute('DELETE FROM station_recovery_jobs WHERE station_id = ?', [station_id]);
+    
+    // 🔄 Reset tracking (dù scheduler cũng sẽ reset khi phát hiện online)
+    await db.execute(
+        'UPDATE station_dynamic_info SET first_offline_at = NULL, offline_duration_seconds = 0 WHERE stationId = ?',
+        [station_id]
+    );
 }
 
 /**
@@ -65,8 +73,9 @@ async function saveToHistory(station_id, device_id, status, retry_count, failure
 
 /**
  * Hàm hỗ trợ lập lịch thử lại khi có bất kỳ lỗi nào xảy ra (Offline hoặc API Fail)
+ * @param {boolean} isDeviceOffline - Thiết bị eWeLink offline (mất điện) hay online (lỗi phần mềm)
  */
-async function rescheduleJob(station_id, retry_index, reason, device_id = null) {
+async function rescheduleJob(station_id, retry_index, reason, device_id = null, isDeviceOffline = false) {
     // Kiểm tra giới hạn số lần thử
     if (retry_index >= MAX_RETRIES) {
         logger.error(`[Job ${station_id}] 🚨 ĐÃ ĐẠT GIỚI HẠN ${MAX_RETRIES} LẦN THỬ. Đánh dấu FAILED.`);
@@ -81,14 +90,27 @@ async function rescheduleJob(station_id, retry_index, reason, device_id = null) 
             [station_id]
         );
         
+        // 🔄 RESET TRACKING để tránh tạo Job mới ngay lập tức
+        // Buộc phải chờ thêm 30 giây offline mới tạo Job lại
+        logger.info(`[Job ${station_id}] 🔄 Reset tracking để tránh spam Job...`);
+        await db.execute(
+            'UPDATE station_dynamic_info SET first_offline_at = NULL, offline_duration_seconds = 0 WHERE stationId = ?',
+            [station_id]
+        );
+        
         // TODO: Gửi alert đến admin (Email/SMS/Telegram)
         return;
     }
     
-    const waitMin = RETRY_INTERVALS[retry_index] || 60;
+    // CHỌN BỘ INTERVALS phù hợp dựa trên tình trạng thiết bị
+    const intervals = isDeviceOffline ? RETRY_INTERVALS_SLOW : RETRY_INTERVALS_FAST;
+    const waitMin = intervals[retry_index] || (isDeviceOffline ? 300 : 30);
     const nextRun = new Date(Date.now() + waitMin * 60000);
     
-    logger.warn(`[Job ${station_id}] ⚠️ Tạm dừng do: ${reason}. Thử lại sau ${waitMin} phút (Lần ${retry_index + 1}/${MAX_RETRIES}).`);
+    const statusLabel = isDeviceOffline ? '⚡ MẤT ĐIỆN' : '🔧 LỖI PHẦN MỀM';
+    
+    logger.warn(`[Job ${station_id}] ${statusLabel} - ${reason}`);
+    logger.warn(`[Job ${station_id}] ⚠️ Thử lại sau ${waitMin} phút (Lần ${retry_index + 1}/${MAX_RETRIES}).`);
     
     // Alert sau lần thử thứ 3
     if (retry_index >= 2) {
@@ -128,8 +150,11 @@ async function runAutoRecovery(job) {
         const device = deviceRes.data.thingList.find(t => t.itemData.deviceid === device_id);
 
         if (!device || !device.itemData.online) {
-            return await rescheduleJob(station_id, retry_index, "Thiết bị eWelink Ngoại tuyến", device_id);
+            logger.warn(`[Job ${station_id}] 🔌 Thiết bị eWeLink OFFLINE → Khả năng MẤT ĐIỆN. Sử dụng retry chậm.`);
+            return await rescheduleJob(station_id, retry_index, "Thiết bị eWelink Ngoại tuyến (Mất điện)", device_id, true);
         }
+        
+        logger.info(`[Job ${station_id}] ✅ Thiết bị eWeLink ONLINE → Trạm bị lỗi phần mềm/treo. Retry nhanh.`);
 
         // 3. Kiểm tra Kênh 1 và thực hiện kịch bản
         const switches = device.itemData.params.switches || [];
@@ -149,7 +174,7 @@ async function runAutoRecovery(job) {
             
             logger.info(`[Job ${station_id}] STEP 1: Bật Kênh 1...`);
             const ok1 = await retryAction(() => ewelinkService.toggleChannel(device_id, 0, 'on'), "Bật Kênh 1");
-            if (!ok1) return await rescheduleJob(station_id, retry_index, "Lỗi API khi Bật Kênh 1", device_id);
+            if (!ok1) return await rescheduleJob(station_id, retry_index, "Lỗi API khi Bật Kênh 1", device_id, false);
             
             await sleep(10000);
         }
@@ -165,7 +190,7 @@ async function runAutoRecovery(job) {
         
         logger.info(`[Job ${station_id}] STEP 2: Bật Kênh 2 (kích nút)...`);
         const ok2 = await retryAction(() => ewelinkService.toggleChannel(device_id, 1, 'on'), "Bật Kênh 2");
-        if (!ok2) return await rescheduleJob(station_id, retry_index, "Lỗi API khi Bật Kênh 2", device_id);
+        if (!ok2) return await rescheduleJob(station_id, retry_index, "Lỗi API khi Bật Kênh 2", device_id, false);
         
         await sleep(5000);
         
@@ -180,7 +205,7 @@ async function runAutoRecovery(job) {
         
         logger.info(`[Job ${station_id}] STEP 3: Tắt Kênh 2...`);
         const ok3 = await retryAction(() => ewelinkService.toggleChannel(device_id, 1, 'off'), "Tắt Kênh 2");
-        if (!ok3) return await rescheduleJob(station_id, retry_index, "Lỗi API khi Tắt Kênh 2", device_id);
+        if (!ok3) return await rescheduleJob(station_id, retry_index, "Lỗi API khi Tắt Kênh 2", device_id, false);
 
         // 4. Chờ kiểm tra kết quả cuối cùng trên CGBAS
         logger.info(`[Job ${station_id}] Điều khiển xong. Chờ 2 phút kiểm tra kết quả...`);
@@ -195,7 +220,27 @@ async function runAutoRecovery(job) {
         } else {
             // NẾU SAU 2 PHÚT VẪN CHƯA LÊN: Có thể do kích chưa ăn, ta tiếp tục reschedule để thử lại từ đầu
             logger.warn(`[Job ${station_id}] ❌ Trạm vẫn Offline sau 2 phút kiểm tra.`);
-            return await rescheduleJob(station_id, retry_index, "Trạm không có tín hiệu sau điều khiển", device_id);
+            
+            // CƠNG CHẾ AN TOÀN: Sau 2 lần retry thất bại (từ retry_index = 2), TẮT KÊNH 1 
+            // để buộc lần retry tiếp theo phải thực hiện Full Scenario (Hard Reset)
+            if (retry_index >= 2 && ch1Status === 'on') {
+                logger.warn(`[Job ${station_id}] 🔌 Đã thử Quick Scenario ${retry_index + 1} lần thất bại.`);
+                logger.warn(`[Job ${station_id}] 🔄 TẮT KÊNH 1 để buộc Hard Reset ở lần retry tiếp theo...`);
+                
+                const okTurnOff = await retryAction(() => ewelinkService.toggleChannel(device_id, 0, 'off'), "Tắt Kênh 1");
+                if (okTurnOff) {
+                    logger.info(`[Job ${station_id}] ✅ Đã tắt Kênh 1. Lần retry tiếp sẽ chạy Full Scenario.`);
+                } else {
+                    logger.error(`[Job ${station_id}] ❌ Không thể tắt Kênh 1. Sẽ vẫn reschedule.`);
+                }
+            }
+            
+            // Kiểm tra lại thiết bị eWeLink để xác định nguyên nhân
+            const deviceCheckAgain = await ewelinkService.getAllThings();
+            const deviceAgain = deviceCheckAgain.data.thingList.find(t => t.itemData.deviceid === device_id);
+            const stillOnline = deviceAgain && deviceAgain.itemData.online;
+            
+            return await rescheduleJob(station_id, retry_index, "Trạm không có tín hiệu sau điều khiển", device_id, !stillOnline);
         }
 
     } catch (err) {
