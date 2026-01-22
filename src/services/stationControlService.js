@@ -5,8 +5,8 @@ const logger = require('../utils/logger');
 const db = require('../config/database');
 
 // CƠ CHẾ RETRY THÔNG MINH: Phân biệt mất điện vs lỗi phần mềm
-const RETRY_INTERVALS_FAST = [2, 3, 5, 10, 15, 20];      // Khi eWeLink ONLINE (lỗi phần mềm/treo)
-const RETRY_INTERVALS_SLOW = [10, 15, 30, 60, 120, 240]; // Khi eWeLink OFFLINE (mất điện)
+const RETRY_INTERVALS_FAST = [2, 2, 3, 5, 10, 20];        // Khi eWeLink ONLINE (lỗi phần mềm/treo)
+const RETRY_INTERVALS_SLOW = [3, 3, 5, 30, 60, 120];     // Khi eWeLink OFFLINE (mất điện)
 const MAX_RETRIES = 6; // Giới hạn số lần thử để tránh vòng lặp vô hạn
 
 /**
@@ -104,13 +104,14 @@ async function rescheduleJob(station_id, retry_index, reason, device_id = null, 
     
     // CHỌN BỘ INTERVALS phù hợp dựa trên tình trạng thiết bị
     const intervals = isDeviceOffline ? RETRY_INTERVALS_SLOW : RETRY_INTERVALS_FAST;
+    const nextRetryIndex = retry_index + 1;
     const waitMin = intervals[retry_index] || (isDeviceOffline ? 300 : 30);
     const nextRun = new Date(Date.now() + waitMin * 60000);
     
     const statusLabel = isDeviceOffline ? '⚡ MẤT ĐIỆN' : '🔧 LỖI PHẦN MỀM';
     
     logger.warn(`[Job ${station_id}] ${statusLabel} - ${reason}`);
-    logger.warn(`[Job ${station_id}] ⚠️ Thử lại sau ${waitMin} phút (Lần ${retry_index + 1}/${MAX_RETRIES}).`);
+    logger.warn(`[Job ${station_id}] ⚠️ Thử lại sau ${waitMin} phút (Lần ${nextRetryIndex}/${MAX_RETRIES}).`);
     
     // Alert sau lần thử thứ 3
     if (retry_index >= 2) {
@@ -208,9 +209,9 @@ async function runAutoRecovery(job) {
         if (!ok3) return await rescheduleJob(station_id, retry_index, "Lỗi API khi Tắt Kênh 2", device_id, false);
 
         // 4. Chờ kiểm tra kết quả cuối cùng trên CGBAS
-        logger.info(`[Job ${station_id}] Điều khiển xong. Chờ 2 phút kiểm tra kết quả...`);
+        logger.info(`[Job ${station_id}] Điều khiển xong. Chờ 90 giây kiểm tra kết quả...`);
         await db.execute('UPDATE station_recovery_jobs SET status = "CHECKING" WHERE station_id = ?', [station_id]);
-        await sleep(120000);
+        await sleep(90000);
 
         // Kiểm tra kết quả từ DB (đã được Scheduler cập nhật mỗi 5s)
         const isOnline = await checkStationOnlineFromDB(station_id);
@@ -218,8 +219,8 @@ async function runAutoRecovery(job) {
         if (isOnline) {
             return await finishSuccess(station_id, device_id, retry_index, null);
         } else {
-            // NẾU SAU 2 PHÚT VẪN CHƯA LÊN: Có thể do kích chưa ăn, ta tiếp tục reschedule để thử lại từ đầu
-            logger.warn(`[Job ${station_id}] ❌ Trạm vẫn Offline sau 2 phút kiểm tra.`);
+            // NẾU SAU 90 GIÂY VẪN CHƯA LÊN: Có thể do kích chưa ăn, ta tiếp tục reschedule để thử lại từ đầu
+            logger.warn(`[Job ${station_id}] ❌ Trạm vẫn Offline sau 90 giây kiểm tra.`);
             
             // CƠNG CHẾ AN TOÀN: Sau 2 lần retry thất bại (từ retry_index = 2), TẮT KÊNH 1 
             // để buộc lần retry tiếp theo phải thực hiện Full Scenario (Hard Reset)

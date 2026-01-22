@@ -279,6 +279,70 @@ docker-compose --profile prod down
 
 # Stop nhưng giữ volumes
 docker-compose down
+
+# Xóa container cụ thể (an toàn, không mất data)
+docker rm cgbas-app-dev         # Xóa dev container
+docker rm cgbas-app-prod        # Xóa prod container
+# Lưu ý: Chỉ xóa container đang stopped, nếu đang chạy thêm -f
+docker rm -f cgbas-app-dev
+```
+
+**Xóa app-dev có an toàn không?**
+- ✅ **An toàn 100%**: Không ảnh hưởng app-prod và MySQL
+- ✅ **Data không mất**: Database vẫn nguyên trong volumes
+- ✅ **Code không mất**: Source code vẫn ở `/opt/cgbasv2`
+- ✅ **Tạo lại dễ dàng**: Chạy `docker-compose --profile dev up -d` là có lại
+- ✅ **Tiết kiệm tài nguyên**: Giảm dung lượng disk
+
+**Giải thích:**
+- `cgbas-app-dev`: Container ứng dụng Node.js (CHỈ CODE, không có data)
+- `cgbas-app-prod`: Container ứng dụng Node.js production (CHỈ CODE)
+- `cgbas-mysql`: Container database (chứa DATA) ← **KHÔNG XÓA CÁI NÀY**
+- Docker volumes: Nơi lưu database thực sự ← **KHÔNG XÓA CÁI NÀY**
+
+**Xóa app-dev = Xóa container chạy code Node.js, KHÔNG động đến database!**
+
+**Khi nào nên xóa app-dev?**
+- VPS chỉ chạy production → Xóa dev để tiết kiệm
+- Port conflict → Xóa dev, chỉ giữ prod
+- Không cần develop trên VPS → Xóa dev
+
+**Dọn dẹp dev trên VPS (Recommended):**
+```bash
+# Bước 1: Xóa container dev
+docker rm -f cgbas-app-dev
+
+# Bước 2: Xóa image dev (tiết kiệm ~350MB)
+docker rmi cgbasv2-app-dev
+
+# Bước 3: Verify chỉ còn prod
+docker ps -a | grep cgbas
+# Kết quả mong muốn: chỉ thấy cgbas-app-prod và cgbas-mysql
+
+# Bước 4: ⚠️ KHÔNG chạy docker image prune -a (sẽ xóa base images!)
+# Thay vào đó chỉ xóa dangling images:
+docker image prune
+
+# Bước 5: Restart prod để đảm bảo chạy tốt
+docker restart cgbas-app-prod
+```
+
+**⚠️ LƯU Ý KHI DÙNG `docker image prune -a`:**
+- Lệnh này xóa **TẤT CẢ** images không được dùng bởi container đang chạy
+- Có thể xóa nhầm MySQL image, Node image (base images cần thiết)
+- Nếu container restart, sẽ không start được vì thiếu image!
+- **An toàn hơn**: Chỉ dùng `docker image prune` (không có -a)
+
+**Nếu đã xóa nhầm base images:**
+```bash
+# Pull lại MySQL image
+docker pull mysql:8.0-debian
+
+# Pull lại Node image  
+docker pull node:18-alpine
+
+# Verify đã có lại
+docker images | grep -E "mysql|node"
 ```
 
 #### Bước 6.2: Stop và xóa volumes (XÓA DATA!)
@@ -652,16 +716,93 @@ docker-compose logs -f
 
 ## 🚨 Troubleshooting
 
-### App không start được
+### Không thấy logs khi chạy docker-compose logs
 ```bash
-# Check logs
-docker-compose logs app-prod
+# Bước 1: Kiểm tra container status
+docker ps -a | grep cgbas
+
+# Nếu thấy status "Created" (chưa start):
+docker-compose --profile dev up -d
+# Hoặc
+docker start cgbas-app-dev
+
+# Nếu thấy status "Up" nhưng không có logs:
+docker-compose logs -f app-dev
+docker logs -f cgbas-app-dev
+
+# Nếu thấy status "Exited" (đã stop hoặc crash):
+# Xem lỗi gì khiến container bị stop
+docker logs cgbas-app-dev
+# Restart lại
+docker-compose --profile dev up -d
+```
+
+**Giải thích các status:**
+- **Created**: Container đã tạo nhưng chưa start → Cần `docker start`
+- **Up**: Container đang chạy bình thường
+- **Exited**: Container đã stop (có thể do lỗi) → Xem logs để biết lý do
+- **Restarting**: Container đang tự restart liên tục → Có lỗi nghiêm trọng
+
+### Port conflict: "Bind for 0.0.0.0:3001 failed: port is already allocated"
+```bash
+# Kiểm tra container nào đang dùng port
+docker ps | grep 3001
+
+# Option 1: Chỉ chạy dev (stop prod trước)
+docker stop cgbas-app-prod
+docker-compose --profile dev up -d
+
+# Option 2: Chỉ chạy prod (recommended)
+docker stop cgbas-app-dev
+docker start cgbas-app-prod
+# hoặc
+docker-compose --profile prod up -d
+
+# Option 3: Đổi port trong docker-compose.yml
+# app-dev: "3000:3000"
+# app-prod: "3001:3001"
+
+# Kiểm tra port đang được dùng
+netstat -tulpn | grep :3001
+lsof -i :3001
+```
+
+**Lưu ý**: Không nên chạy cả dev và prod cùng lúc trên VPS. Chọn một trong hai:
+- Development: dùng profile `dev`
+- Production: dùng profile `prod`
+
+### Container status "unhealthy" nhưng app vẫn chạy bình thường
+```bash
+# Check tại sao unhealthy
+docker inspect cgbas-app-prod | grep -A 20 Health
+
+# Xem logs để tìm lỗi
+docker logs --tail=200 cgbas-app-prod
+
+# Test health endpoint manual
+curl http://localhost:3001/health
+
+# Nếu health endpoint trả về OK nhưng vẫn unhealthy
+# → Kiểm tra healthcheck config trong Dockerfile hoặc docker-compose.yml
+
+# Restart container
+docker restart cgbas-app-prod
+```
+
+### App không start được (status "Exited" hoặc "Restarting")
+```bash
+# Check logs để xem lỗi
+docker logs cgbas-app-prod
 
 # Check health
 docker inspect cgbas-app-prod
 
 # Restart
 docker-compose restart app-prod
+
+# Nếu vẫn lỗi, rebuild
+docker-compose --profile prod down
+docker-compose --profile prod up -d --build
 ```
 
 ### MySQL connection error
@@ -747,20 +888,28 @@ server {
 
 ## 🌟 Recommended Setup
 
-### Local Development
+### Local Development (Máy cá nhân)
 ```bash
 docker-compose --profile dev up -d
 ```
 
-### Production Server
+### Production Server (VPS)
 ```bash
+# ✅ VPS CHỈ CHẠY PRODUCTION
 docker-compose --profile prod up -d --build
+
+# ❌ KHÔNG chạy dev trên VPS (port conflict + tốn tài nguyên)
 ```
 
-### Both (Testing)
+### Both (Testing - chỉ dùng local)
 ```bash
 docker-compose --profile dev --profile prod up -d
 ```
+
+**Best Practice:**
+- 💻 **Local/Laptop**: Chạy `--profile dev` để develop
+- 🚀 **VPS/Server**: Chỉ chạy `--profile prod`, xóa app-dev nếu có
+- ⚠️ **Không bao giờ**: Chạy cả dev + prod trên VPS (port conflict)
 
 ---
 
@@ -768,8 +917,12 @@ docker-compose --profile dev --profile prod up -d
 
 ```bash
 # === BẮT ĐẦU ===
-docker-compose --profile dev up -d              # Start dev
-docker-compose --profile prod up -d --build     # Start prod
+docker-compose --profile dev up -d              # Start dev (LOCAL ONLY)
+docker-compose --profile prod up -d --build     # Start prod (VPS)
+
+# === CLEANUP DEV TRÊN VPS ===
+docker rm -f cgbas-app-dev                      # Xóa dev container
+docker rmi cgbasv2-app-dev                      # Xóa dev image
 
 # === XEM LOGS ===
 docker-compose logs -f app-dev                  # Logs dev

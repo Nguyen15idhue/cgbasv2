@@ -26,7 +26,7 @@ docker-compose --profile prod down
 
 # Rebuild
 echo "🔨 Rebuilding image..."
-docker-compose build --no-cache
+docker-compose build --no-cache app-prod
 
 # Start containers
 echo "🚀 Starting containers..."
@@ -37,7 +37,7 @@ echo "⏳ Waiting for application to be healthy..."
 sleep 10
 
 # Check health
-if curl -f http://localhost:3000/health > /dev/null 2>&1; then
+if curl -f http://localhost:3001/health > /dev/null 2>&1; then
     echo "✅ Update successful! Application is healthy."
 else
     echo "⚠️  Warning: Health check failed. Check logs:"
