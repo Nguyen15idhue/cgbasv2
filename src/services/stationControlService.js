@@ -6,7 +6,7 @@ const db = require('../config/database');
 
 // CƠ CHẾ RETRY THÔNG MINH: Phân biệt mất điện vs lỗi phần mềm
 const RETRY_INTERVALS_FAST = [2, 2, 3, 5, 10, 20];        // Khi eWeLink ONLINE (lỗi phần mềm/treo)
-const RETRY_INTERVALS_SLOW = [3, 3, 5, 30, 60, 120];     // Khi eWeLink OFFLINE (mất điện)
+const RETRY_INTERVALS_SLOW = [3, 3, 5, 10, 60, 120];     // Khi eWeLink OFFLINE (mất điện)
 const MAX_RETRIES = 6; // Giới hạn số lần thử để tránh vòng lặp vô hạn
 
 /**
