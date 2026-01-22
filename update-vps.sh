@@ -16,7 +16,7 @@ git pull origin main
 echo "💾 Creating backup..."
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 mkdir -p ~/backups
-docker exec cgbas-mysql mysqldump -u cgbas -p$(grep DB_PASS .env | cut -d '=' -f2) cgbas_db > ~/backups/cgbas_pre_update_$TIMESTAMP.sql
+docker exec cgbas-mysql mysqldump --no-tablespaces -u cgbas -p$(grep DB_PASS .env | cut -d '=' -f2) cgbas_db > ~/backups/cgbas_pre_update_$TIMESTAMP.sql
 gzip ~/backups/cgbas_pre_update_$TIMESTAMP.sql
 echo "✅ Backup saved: ~/backups/cgbas_pre_update_$TIMESTAMP.sql.gz"
 
