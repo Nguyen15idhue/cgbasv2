@@ -36,6 +36,7 @@ router.get('/list', async (req, res) => {
                 s.lat,
                 s.lng,
                 s.ewelink_device_id,
+                s.is_active,
                 d.connectStatus,
                 d.delay,
                 d.sat_R,
@@ -192,6 +193,172 @@ router.delete('/mapping/:stationId', async (req, res) => {
         });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// API: Toggle enable/disable một trạm
+router.post('/toggle-status/:stationId', async (req, res) => {
+    try {
+        const { stationId } = req.params;
+
+        if (!stationId) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Thiếu thông tin stationId' 
+            });
+        }
+
+        // Get current status
+        const [station] = await db.execute(
+            'SELECT is_active FROM stations WHERE id = ?',
+            [stationId]
+        );
+
+        if (station.length === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Không tìm thấy trạm' 
+            });
+        }
+
+        const newStatus = station[0].is_active === 1 ? 0 : 1;
+
+        // Update status
+        await db.execute(
+            'UPDATE stations SET is_active = ? WHERE id = ?',
+            [newStatus, stationId]
+        );
+
+        res.json({ 
+            success: true, 
+            message: `Đã ${newStatus === 1 ? 'kích hoạt' : 'vô hiệu hóa'} trạm thành công`,
+            newStatus: newStatus
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// API: Enable/Disable all stations
+router.post('/toggle-all', async (req, res) => {
+    try {
+        const { action } = req.body; // action: 'enable' or 'disable'
+
+        if (!action || !['enable', 'disable'].includes(action)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Action phải là "enable" hoặc "disable"' 
+            });
+        }
+
+        const newStatus = action === 'enable' ? 1 : 0;
+
+        const [result] = await db.execute(
+            'UPDATE stations SET is_active = ?',
+            [newStatus]
+        );
+
+        res.json({ 
+            success: true, 
+            message: `Đã ${action === 'enable' ? 'kích hoạt' : 'vô hiệu hóa'} ${result.affectedRows} trạm`,
+            affectedRows: result.affectedRows
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// API: Đồng bộ danh sách trạm mới từ CGBAS (không update mapping)
+router.post('/sync', async (req, res) => {
+    const cgbasApi = require('../services/cgbasApi');
+    const logger = require('../utils/logger');
+    
+    try {
+        // Get stations from CGBAS API
+        logger.info('[Sync Stations] Fetching stations from CGBAS...');
+        const result = await cgbasApi.fetchStations(1, 9999);
+        
+        logger.info('[Sync Stations] CGBAS Response:', JSON.stringify(result).substring(0, 200));
+        
+        // Check for errors in response
+        if (!result) {
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Không nhận được phản hồi từ CGBAS API'
+            });
+        }
+        
+        if (result.error && result.error !== 0) {
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Lỗi từ CGBAS: ' + (result.msg || result.message || 'Lỗi không xác định')
+            });
+        }
+        
+        if (!result.stationList || !Array.isArray(result.stationList)) {
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Dữ liệu trả về từ CGBAS không hợp lệ (thiếu stationList)'
+            });
+        }
+
+        const stations = result.stationList;
+        logger.info(`[Sync Stations] Found ${stations.length} stations from CGBAS`);
+        
+        let addedCount = 0;
+        let existingCount = 0;
+
+        // Insert only new stations (không update existing)
+        for (const station of stations) {
+            // Check if exists
+            const [existing] = await db.execute(
+                'SELECT id FROM stations WHERE id = ?',
+                [station.id]
+            );
+
+            if (existing.length === 0) {
+                // Insert new station
+                await db.execute(
+                    `INSERT INTO stations 
+                    (id, stationName, identificationName, stationType, receiverType, 
+                     antennaType, antennaHigh, lat, lng, status, createTime, updateTime) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [
+                        station.id,
+                        station.stationName,
+                        station.identificationName,
+                        station.stationType,
+                        station.receiverType || '',
+                        station.antennaType || '',
+                        station.antennaHigh || 0,
+                        station.lat,
+                        station.lng,
+                        station.status,
+                        station.createTime,
+                        station.updateTime
+                    ]
+                );
+                addedCount++;
+            } else {
+                existingCount++;
+            }
+        }
+
+        logger.info(`[Sync Stations] Completed. Added: ${addedCount}, Existing: ${existingCount}`);
+        
+        res.json({ 
+            success: true, 
+            message: `Đồng bộ thành công. Thêm mới: ${addedCount}, Đã tồn tại: ${existingCount}`,
+            addedCount,
+            existingCount,
+            totalScanned: stations.length
+        });
+    } catch (err) {
+        logger.error('[Sync Stations] Error:', err);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Lỗi server: ' + err.message 
+        });
     }
 });
 

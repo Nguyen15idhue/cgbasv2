@@ -107,7 +107,7 @@ function renderSettings() {
     if (stations.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="5" class="text-center">
+                <td colspan="6" class="text-center">
                     <i class="fas fa-info-circle"></i> Không có trạm nào
                 </td>
             </tr>
@@ -122,27 +122,43 @@ function renderSettings() {
             </option>`
         ).join('');
 
+        const isActive = station.is_active === 1 || station.is_active === undefined;
+        const activeStatusBadge = isActive 
+            ? '<span class="badge bg-success">Đã kích hoạt</span>' 
+            : '<span class="badge bg-secondary">Vô hiệu hóa</span>';
+        
+        const mappingStatusBadge = station.ewelink_device_id 
+            ? '<span class="badge bg-success">Đã ánh xạ</span>' 
+            : '<span class="badge bg-secondary">Chưa ánh xạ</span>';
+
         return `
-            <tr>
+            <tr class="${isActive ? '' : 'table-secondary'}">
                 <td>${station.stationName}</td>
                 <td><code>${station.id}</code></td>
                 <td>
-                    <select class="form-select form-select-sm" id="device_${station.id}">
+                    <select class="form-select form-select-sm" id="device_${station.id}" ${isActive ? '' : 'disabled'}>
                         <option value="">-- Chưa ánh xạ --</option>
                         ${deviceOptions}
                     </select>
                 </td>
+                <td>${mappingStatusBadge}</td>
                 <td>
-                    ${station.ewelink_device_id 
-                        ? '<span class="badge bg-success">Đã ánh xạ</span>' 
-                        : '<span class="badge bg-secondary">Chưa ánh xạ</span>'}
+                    <button class="btn btn-sm ${isActive ? 'btn-warning' : 'btn-success'}" 
+                            onclick="toggleStationStatus('${station.id}', ${isActive})">
+                        <i class="fas ${isActive ? 'fa-toggle-off' : 'fa-toggle-on'}"></i>
+                        ${isActive ? 'Vô hiệu' : 'Kích hoạt'}
+                    </button>
                 </td>
                 <td>
-                    <button class="btn btn-sm btn-primary me-1" onclick="saveMapping(${station.id})">
+                    <button class="btn btn-sm btn-primary me-1" 
+                            onclick="saveMapping('${station.id}')"
+                            ${isActive ? '' : 'disabled'}>
                         <i class="fas fa-save"></i> Lưu
                     </button>
                     ${station.ewelink_device_id 
-                        ? `<button class="btn btn-sm btn-danger" onclick="deleteMapping(${station.id})">
+                        ? `<button class="btn btn-sm btn-danger" 
+                                   onclick="deleteMapping('${station.id}')"
+                                   ${isActive ? '' : 'disabled'}>
                             <i class="fas fa-trash"></i> Xóa
                            </button>`
                         : ''}
@@ -266,4 +282,222 @@ if (document.readyState === 'loading') {
 } else {
     // DOM already loaded
     loadSettings();
+}
+
+// Toggle single station status
+async function toggleStationStatus(stationId, currentStatus) {
+    const actionText = currentStatus ? 'vô hiệu hóa' : 'kích hoạt';
+    
+    const result = await Swal.fire({
+        icon: 'question',
+        title: 'Xác nhận',
+        text: `Bạn có chắc muốn ${actionText} trạm này?`,
+        showCancelButton: true,
+        confirmButtonText: actionText === 'vô hiệu hóa' ? 'Vô hiệu hóa' : 'Kích hoạt',
+        cancelButtonText: 'Hủy',
+        confirmButtonColor: currentStatus ? '#ffc107' : '#28a745'
+    });
+    
+    if (!result.isConfirmed) return;
+    
+    try {
+        const response = await fetch(`/api/stations/toggle-status/${stationId}`, {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Thành công',
+                text: data.message,
+                timer: 2000
+            });
+            loadSettings(); // Reload
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Lỗi',
+                text: data.message || 'Không thể cập nhật trạng thái'
+            });
+        }
+    } catch (error) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Lỗi',
+            text: 'Không thể kết nối đến server'
+        });
+    }
+}
+
+// Toggle all stations
+async function toggleAllStations(action) {
+    const actionText = action === 'enable' ? 'kích hoạt' : 'vô hiệu hóa';
+    
+    const result = await Swal.fire({
+        icon: 'warning',
+        title: 'Xác nhận',
+        text: `Bạn có chắc muốn ${actionText} TẤT CẢ trạm?`,
+        showCancelButton: true,
+        confirmButtonText: `${actionText.charAt(0).toUpperCase() + actionText.slice(1)} tất cả`,
+        cancelButtonText: 'Hủy',
+        confirmButtonColor: action === 'enable' ? '#28a745' : '#ffc107'
+    });
+    
+    if (!result.isConfirmed) return;
+    
+    try {
+        const response = await fetch('/api/stations/toggle-all', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Thành công',
+                text: data.message,
+                timer: 2000
+            });
+            loadSettings(); // Reload
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Lỗi',
+                text: data.message || 'Không thể cập nhật'
+            });
+        }
+    } catch (error) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Lỗi',
+            text: 'Không thể kết nối đến server'
+        });
+    }
+}
+
+// Sync eWeLink devices
+async function syncEwelinkDevices() {
+    const result = await Swal.fire({
+        icon: 'question',
+        title: 'Đồng bộ thiết bị eWeLink',
+        text: 'Hệ thống sẽ lấy danh sách thiết bị mới từ eWeLink và thêm vào database (không cập nhật thiết bị đã tồn tại). Tiếp tục?',
+        showCancelButton: true,
+        confirmButtonText: 'Đồng bộ',
+        cancelButtonText: 'Hủy'
+    });
+    
+    if (!result.isConfirmed) return;
+
+    // Show loading
+    Swal.fire({
+        title: 'Đang đồng bộ...',
+        text: 'Vui lòng đợi',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    try {
+        const response = await fetch('/api/ewelink/sync-devices', {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Thành công',
+                html: `
+                    <p>${data.message}</p>
+                    <ul class="text-start">
+                        <li>Thêm mới: <strong>${data.addedCount}</strong></li>
+                        <li>Cập nhật trạng thái: <strong>${data.updatedStatusCount}</strong></li>
+                        <li>Tổng quét: <strong>${data.totalScanned}</strong></li>
+                    </ul>
+                `,
+                timer: 5000
+            });
+            loadSettings(); // Reload
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Lỗi',
+                text: data.message || 'Không thể đồng bộ'
+            });
+        }
+    } catch (error) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Lỗi',
+            text: 'Không thể kết nối đến server'
+        });
+    }
+}
+
+// Sync CGBAS stations
+async function syncCgbasStations() {
+    const result = await Swal.fire({
+        icon: 'question',
+        title: 'Đồng bộ trạm CGBAS',
+        text: 'Hệ thống sẽ lấy danh sách trạm mới từ CGBAS và thêm vào database (không cập nhật trạm đã tồn tại, không ảnh hưởng ánh xạ). Tiếp tục?',
+        showCancelButton: true,
+        confirmButtonText: 'Đồng bộ',
+        cancelButtonText: 'Hủy'
+    });
+    
+    if (!result.isConfirmed) return;
+
+    // Show loading
+    Swal.fire({
+        title: 'Đang đồng bộ...',
+        text: 'Vui lòng đợi',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    try {
+        const response = await fetch('/api/stations/sync', {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Thành công',
+                html: `
+                    <p>${data.message}</p>
+                    <ul class="text-start">
+                        <li>Thêm mới: <strong>${data.addedCount}</strong></li>
+                        <li>Đã tồn tại: <strong>${data.existingCount}</strong></li>
+                        <li>Tổng quét: <strong>${data.totalScanned}</strong></li>
+                    </ul>
+                `,
+                timer: 5000
+            });
+            loadSettings(); // Reload
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Lỗi',
+                text: data.message || 'Không thể đồng bộ'
+            });
+        }
+    } catch (error) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Lỗi',
+            text: 'Không thể kết nối đến server'
+        });
+    }
 }

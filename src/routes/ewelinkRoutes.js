@@ -194,4 +194,111 @@ router.post('/refresh-token', async (req, res) => {
     }
 });
 
+// API: Đồng bộ thiết bị mới từ eWeLink (không update existing)
+router.post('/sync-devices', async (req, res) => {
+    try {
+        // Get all devices from eWeLink API
+        const result = await ewelinkService.getAllThings();
+        
+        if (result.error !== 0) {
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Lỗi khi lấy dữ liệu từ eWeLink: ' + result.msg 
+            });
+        }
+
+        const devices = result.data.thingList || [];
+        let addedCount = 0;
+        let updatedStatusCount = 0;
+        let existingCount = 0;
+
+        for (const thing of devices) {
+            const deviceData = thing.itemData;
+            
+            // Check if device exists
+            const [existing] = await db.execute(
+                'SELECT deviceid FROM ewelink_devices WHERE deviceid = ?',
+                [deviceData.deviceid]
+            );
+
+            if (existing.length === 0) {
+                // Insert new device
+                await db.execute(
+                    `INSERT INTO ewelink_devices 
+                    (deviceid, name, model, online, familyid, apikey) 
+                    VALUES (?, ?, ?, ?, ?, ?)`,
+                    [
+                        deviceData.deviceid,
+                        deviceData.name,
+                        deviceData.extra?.model || 'Unknown',
+                        deviceData.online || false,
+                        thing.index?.familyid || '',
+                        deviceData.apikey || ''
+                    ]
+                );
+
+                // Insert status
+                const switches = deviceData.params?.switches || [];
+                const sw0 = switches.find(s => s.outlet === 0)?.switch || 'off';
+                const sw1 = switches.find(s => s.outlet === 1)?.switch || 'off';
+
+                await db.execute(
+                    `INSERT INTO ewelink_status 
+                    (deviceid, switch_0, switch_1, voltage_0, current_0, actPow_0) 
+                    VALUES (?, ?, ?, ?, ?, ?)`,
+                    [
+                        deviceData.deviceid,
+                        sw0,
+                        sw1,
+                        deviceData.params?.voltage_0 || 0,
+                        deviceData.params?.current_0 || 0,
+                        deviceData.params?.actPow_0 || 0
+                    ]
+                );
+
+                addedCount++;
+            } else {
+                // Chỉ update status (online/offline), không update tên hay thông tin khác
+                await db.execute(
+                    'UPDATE ewelink_devices SET online = ? WHERE deviceid = ?',
+                    [deviceData.online || false, deviceData.deviceid]
+                );
+
+                // Update status switches
+                const switches = deviceData.params?.switches || [];
+                const sw0 = switches.find(s => s.outlet === 0)?.switch || 'off';
+                const sw1 = switches.find(s => s.outlet === 1)?.switch || 'off';
+
+                await db.execute(
+                    `UPDATE ewelink_status 
+                    SET switch_0 = ?, switch_1 = ?, voltage_0 = ?, current_0 = ?, actPow_0 = ? 
+                    WHERE deviceid = ?`,
+                    [
+                        sw0,
+                        sw1,
+                        deviceData.params?.voltage_0 || 0,
+                        deviceData.params?.current_0 || 0,
+                        deviceData.params?.actPow_0 || 0,
+                        deviceData.deviceid
+                    ]
+                );
+
+                updatedStatusCount++;
+                existingCount++;
+            }
+        }
+
+        res.json({ 
+            success: true, 
+            message: `Đồng bộ thành công. Thêm mới: ${addedCount}, Cập nhật trạng thái: ${updatedStatusCount}`,
+            addedCount,
+            updatedStatusCount,
+            existingCount,
+            totalScanned: devices.length
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 module.exports = router;

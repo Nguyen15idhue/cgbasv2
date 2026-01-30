@@ -16,6 +16,7 @@ async function checkAndTriggerRecovery() {
             FROM station_dynamic_info d
             JOIN stations s ON d.stationId = s.id
             WHERE s.ewelink_device_id IS NOT NULL
+            AND s.is_active = 1
         `);
         
         for (const st of allStations) {
@@ -53,6 +54,7 @@ async function checkAndTriggerRecovery() {
             JOIN station_dynamic_info d ON s.id = d.stationId
             LEFT JOIN station_recovery_jobs j ON s.id = j.station_id
             WHERE s.ewelink_device_id IS NOT NULL
+            AND s.is_active = 1
             AND j.id IS NULL
             AND (
                 -- Case 1: Offline hoàn toàn >= 30 giây

@@ -7,6 +7,22 @@
     Ánh xạ trạm CGBAS với thiết bị eWelink để kích hoạt phục hồi tự động
 </div>
 
+<!-- Action Buttons -->
+<div class="mb-3 d-flex gap-2 flex-wrap">
+    <button class="btn btn-success" onclick="toggleAllStations('enable')">
+        <i class="fas fa-toggle-on"></i> Kích hoạt tất cả
+    </button>
+    <button class="btn btn-warning" onclick="toggleAllStations('disable')">
+        <i class="fas fa-toggle-off"></i> Vô hiệu hóa tất cả
+    </button>
+    <button class="btn btn-primary" onclick="syncEwelinkDevices()">
+        <i class="fas fa-sync"></i> Đồng bộ thiết bị eWeLink
+    </button>
+    <button class="btn btn-info" onclick="syncCgbasStations()">
+        <i class="fas fa-satellite-dish"></i> Đồng bộ trạm CGBAS
+    </button>
+</div>
+
 <div class="table-responsive">
     <table class="table">
         <thead>
@@ -14,7 +30,8 @@
                 <th>Tên trạm</th>
                 <th>Station ID</th>
                 <th>Thiết bị eWelink</th>
-                <th>Trạng thái</th>
+                <th>Trạng thái ánh xạ</th>
+                <th>Kích hoạt</th>
                 <th>Thao tác</th>
             </tr>
         </thead>
