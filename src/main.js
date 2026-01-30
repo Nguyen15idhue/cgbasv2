@@ -23,6 +23,7 @@ const { requireAuth } = require('./middleware/auth');
 const authRoutes = require('./routes/authRoutes');
 const stationRoutes = require('./routes/stationRoutes');
 const ewelinkRoutes = require('./routes/ewelinkRoutes');
+const reportRoutes = require('./routes/reportRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -193,6 +194,7 @@ app.delete('/api/queue/jobs/:stationId', requireAuth, async (req, res) => {
 // PROTECTED API ROUTES (Cần đăng nhập)
 app.use('/api/stations', requireAuth, stationRoutes);
 app.use('/api/ewelink', requireAuth, ewelinkRoutes);
+app.use('/api/reports', requireAuth, reportRoutes);
 
 /**
  * Hàm hỗ trợ quét thiết bị eWelink vào DB lúc khởi động

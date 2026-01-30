@@ -10,6 +10,7 @@ const routes = {
     '/stations': '/partials/stations.html',
     '/devices': '/partials/devices.html',
     '/history': '/partials/history.html',
+    '/reports': '/partials/reports.html',
     '/logs': '/partials/logs.html',
     '/settings': '/partials/settings.html'
 };
@@ -44,6 +45,10 @@ function clearAllIntervals() {
         clearInterval(window.historyInterval);
         window.historyInterval = null;
     }
+    if (window.reportInterval) {
+        clearInterval(window.reportInterval);
+        window.reportInterval = null;
+    }
 }
 
 // Page configurations
@@ -72,6 +77,11 @@ const pageConfig = {
         title: 'Lịch sử phục hồi',
         css: '/css/history.css',
         js: '/js/history.js'
+    },
+    '/reports': {
+        title: 'Báo cáo API',
+        css: '/css/reports.css',
+        js: '/js/reports.js'
     },
     '/logs': {
         title: 'Nhật ký hệ thống',

@@ -1,0 +1,152 @@
+<div class="page-header">
+    <h1><i class="fas fa-chart-line"></i> Báo cáo API eWeLink</h1>
+</div>
+
+<div class="stats-cards">
+    <div class="stat-card">
+        <h3 id="totalCalls">0</h3>
+        <p>Tổng lượt gọi API</p>
+    </div>
+    <div class="stat-card success">
+        <h3 id="successCalls">0</h3>
+        <p>Thành công</p>
+    </div>
+    <div class="stat-card danger">
+        <h3 id="errorCalls">0</h3>
+        <p>Lỗi</p>
+    </div>
+    <div class="stat-card">
+        <h3 id="avgDuration">0 ms</h3>
+        <p>Thời gian TB</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <span><i class="fas fa-filter"></i> Bộ lọc báo cáo</span>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label for="periodFilter" class="form-label">Nhóm theo</label>
+                <select id="periodFilter" class="form-select">
+                    <option value="day">Ngày</option>
+                    <option value="month">Tháng</option>
+                    <option value="year">Năm</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="startDate" class="form-label">Từ ngày</label>
+                <input type="date" id="startDate" class="form-control">
+            </div>
+            <div class="col-md-3">
+                <label for="endDate" class="form-label">Đến ngày</label>
+                <input type="date" id="endDate" class="form-control">
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button id="applyFilter" class="btn btn-primary w-100">
+                    <i class="fas fa-search"></i> Áp dụng
+                </button>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-md-12">
+                <button id="resetFilter" class="btn btn-outline-secondary">
+                    <i class="fas fa-redo"></i> Đặt lại bộ lọc
+                </button>
+                <button id="exportData" class="btn btn-outline-success ms-2">
+                    <i class="fas fa-file-excel"></i> Xuất CSV
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-chart-bar"></i> Thống kê theo thời gian</span>
+        <small class="text-muted" id="reportPeriodLabel">Nhóm theo: Ngày</small>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Thời gian</th>
+                        <th class="text-center">Tổng số API</th>
+                        <th class="text-center">Thành công</th>
+                        <th class="text-center">Lỗi</th>
+                        <th class="text-center">Endpoints</th>
+                        <th class="text-center">Thời gian TB (ms)</th>
+                        <th>Lần gọi đầu</th>
+                        <th>Lần gọi cuối</th>
+                    </tr>
+                </thead>
+                <tbody id="reportTableBody">
+                    <tr>
+                        <td colspan="8" class="text-center">
+                            <i class="fas fa-spinner fa-spin"></i> Đang tải dữ liệu...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header">
+        <span><i class="fas fa-star"></i> Top 10 Endpoints được gọi nhiều nhất</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Method</th>
+                        <th>Endpoint</th>
+                        <th class="text-center">Số lần gọi</th>
+                        <th class="text-center">Thời gian TB (ms)</th>
+                    </tr>
+                </thead>
+                <tbody id="topEndpointsBody">
+                    <tr>
+                        <td colspan="5" class="text-center">
+                            <i class="fas fa-spinner fa-spin"></i> Đang tải dữ liệu...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header">
+        <span><i class="fas fa-microchip"></i> Thống kê theo thiết bị</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Device ID</th>
+                        <th>Tên thiết bị</th>
+                        <th class="text-center">Tổng số API</th>
+                        <th class="text-center">Thành công</th>
+                        <th class="text-center">Lỗi</th>
+                        <th>Lần gọi cuối</th>
+                    </tr>
+                </thead>
+                <tbody id="deviceStatsBody">
+                    <tr>
+                        <td colspan="6" class="text-center">
+                            <i class="fas fa-spinner fa-spin"></i> Đang tải dữ liệu...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
