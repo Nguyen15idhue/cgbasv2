@@ -3,23 +3,89 @@ const logger = require('../utils/logger');
 const db = require('../config/database');
 require('dotenv').config();
 
-// Biến lưu token hiện tại (có thể thay đổi khi refresh)
-let currentAccessToken = process.env.EWELINK_TOKEN;
-let currentRefreshToken = process.env.EWELINK_REFRESHTOKEN;
+// Biến lưu config và token hiện tại (đọc từ DB ưu tiên)
+let currentConfig = null;
 let isRefreshing = false; // Flag để tránh refresh đồng thời
 let refreshPromise = null; // Promise để các request chờ refresh xong
+let configLoadPromise = null; // Promise để đảm bảo config chỉ load 1 lần
+
+/**
+ * Load cấu hình eWeLink từ database (ưu tiên) hoặc .env (fallback)
+ */
+async function loadConfigFromDB() {
+    // Nếu đang load, return promise hiện tại
+    if (configLoadPromise) {
+        return configLoadPromise;
+    }
+    
+    configLoadPromise = (async () => {
+        try {
+            const [rows] = await db.execute('SELECT * FROM ewelink_config LIMIT 1');
+            
+            if (rows.length > 0) {
+                const config = rows[0];
+                currentConfig = {
+                    appId: config.app_id,
+                    appSecret: config.app_secret,
+                    apiUrl: config.api_url,
+                    accessToken: config.access_token || '',
+                    refreshToken: config.refresh_token || ''
+                };
+                
+                logger.info('[eWelink] ✓ Đã load cấu hình từ database');
+                logger.info(`[eWelink] API URL: ${currentConfig.apiUrl}`);
+                
+                // Cập nhật baseURL của axios instance
+                ewelinkApi.defaults.baseURL = currentConfig.apiUrl;
+                return currentConfig;
+            } else {
+                // Fallback to .env
+                logger.warn('[eWelink] ⚠️  Chưa có cấu hình trong DB, sử dụng .env');
+                currentConfig = {
+                    appId: process.env.EWELINK_APPID || '',
+                    appSecret: process.env.EWELINK_APPSECRET || '',
+                    apiUrl: process.env.EWELINK_API || 'https://as-apia.coolkit.cc',
+                    accessToken: process.env.EWELINK_TOKEN || '',
+                    refreshToken: process.env.EWELINK_REFRESHTOKEN || ''
+                };
+                return currentConfig;
+            }
+        } catch (error) {
+            logger.error('[eWelink] Lỗi load config từ DB: ' + error.message);
+            logger.warn('[eWelink] Fallback to .env config');
+            
+            // Fallback to .env on error
+            currentConfig = {
+                appId: process.env.EWELINK_APPID || '',
+                appSecret: process.env.EWELINK_APPSECRET || '',
+                apiUrl: process.env.EWELINK_API || 'https://as-apia.coolkit.cc',
+                accessToken: process.env.EWELINK_TOKEN || '',
+                refreshToken: process.env.EWELINK_REFRESHTOKEN || ''
+            };
+            return currentConfig;
+        }
+    })();
+    
+    return configLoadPromise;
+}
 
 const ewelinkApi = axios.create({
-    baseURL: process.env.EWELINK_API,
+    baseURL: 'https://as-apia.coolkit.cc', // Default, sẽ được update sau khi load config
     headers: {
         'Content-Type': 'application/json'
     }
 });
 
 // INTERCEPTOR: Thêm token vào mỗi request
-ewelinkApi.interceptors.request.use(request => {
+ewelinkApi.interceptors.request.use(async (request) => {
+    // Đảm bảo config đã được load từ DB
+    if (!currentConfig) {
+        await loadConfigFromDB();
+    }
+    
     request.metadata = { startTime: new Date() };
-    request.headers['Authorization'] = `Bearer ${currentAccessToken}`;
+    request.headers['Authorization'] = `Bearer ${currentConfig.accessToken}`;
+    request.headers['X-CK-Appid'] = currentConfig.appId;
     return request;
 });
 
@@ -41,7 +107,7 @@ ewelinkApi.interceptors.response.use(
                 if (isRefreshing) {
                     await refreshPromise;
                     // Retry request với token mới
-                    originalRequest.headers['Authorization'] = `Bearer ${currentAccessToken}`;
+                    originalRequest.headers['Authorization'] = `Bearer ${currentConfig.accessToken}`;
                     return ewelinkApi(originalRequest);
                 }
                 
@@ -52,7 +118,7 @@ ewelinkApi.interceptors.response.use(
                 await refreshPromise;
                 
                 // Retry request với token mới
-                originalRequest.headers['Authorization'] = `Bearer ${currentAccessToken}`;
+                originalRequest.headers['Authorization'] = `Bearer ${currentConfig.accessToken}`;
                 return ewelinkApi(originalRequest);
                 
             } catch (refreshError) {
@@ -238,22 +304,52 @@ async function toggleChannel(deviceid, outlet, status) {
 }
 
 /**
- * Lấy token hiện tại (dùng để kiểm tra)
+ * Lấy token và config hiện tại (dùng để kiểm tra)
  */
 function getCurrentTokens() {
+    if (!currentConfig) {
+        logger.warn('[eWelink] Config chưa được load, trả về rỗng');
+        return {
+            accessToken: '',
+            refreshToken: ''
+        };
+    }
     return {
-        accessToken: currentAccessToken,
-        refreshToken: currentRefreshToken
+        accessToken: currentConfig.accessToken,
+        refreshToken: currentConfig.refreshToken
     };
 }
 
 /**
  * Cập nhật token thủ công (nếu cần)
  */
-function updateTokens(newAccessToken, newRefreshToken) {
-    if (newAccessToken) currentAccessToken = newAccessToken;
-    if (newRefreshToken) currentRefreshToken = newRefreshToken;
+async function updateTokens(newAccessToken, newRefreshToken) {
+    if (!currentConfig) {
+        await loadConfigFromDB();
+    }
+    if (newAccessToken) currentConfig.accessToken = newAccessToken;
+    if (newRefreshToken) currentConfig.refreshToken = newRefreshToken;
     logger.info('[eWelink] Đã cập nhật token thủ công');
+}
+
+/**
+ * Cập nhật toàn bộ config thủ công (gọi từ API)
+ */
+async function updateConfig(config) {
+    // Đảm bảo currentConfig đã được khởi tạo
+    if (!currentConfig) {
+        await loadConfigFromDB();
+    }
+    
+    if (config.appId) currentConfig.appId = config.appId;
+    if (config.appSecret) currentConfig.appSecret = config.appSecret;
+    if (config.apiUrl) {
+        currentConfig.apiUrl = config.apiUrl;
+        ewelinkApi.defaults.baseURL = config.apiUrl;
+    }
+    if (config.accessToken) currentConfig.accessToken = config.accessToken;
+    if (config.refreshToken) currentConfig.refreshToken = config.refreshToken;
+    logger.info('[eWelink] Đã cập nhật cấu hình thủ công');
 }
 
 /**
@@ -268,5 +364,12 @@ module.exports = {
     toggleChannel,
     getCurrentTokens,
     updateTokens,
-    forceRefreshToken
+    updateConfig,
+    forceRefreshToken,
+    loadConfigFromDB
 };
+
+// Khởi tạo: Load config từ DB ngay khi module được require
+loadConfigFromDB().catch(err => {
+    logger.error('[eWelink] Lỗi load config khi khởi động:', err.message);
+});

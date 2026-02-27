@@ -278,7 +278,16 @@ router.post('/sync', async (req, res) => {
         logger.info('[Sync Stations] Fetching stations from CGBAS...');
         const result = await cgbasApi.fetchStations(1, 9999);
         
-        logger.info('[Sync Stations] CGBAS Response:', JSON.stringify(result).substring(0, 200));
+        // Use console.log to bypass winston's logging issues
+        console.log('========== CGBAS SYNC DEBUG ==========');
+        console.log('Result is null?', result === null);
+        console.log('Result is undefined?', result === undefined);
+        console.log('Result typeof:', typeof result);
+        console.log('Result value:', result);
+        console.log('Result.code:', result?.code);
+        console.log('Result.msg:', result?.msg);
+        console.log('Result.data:', result?.data);
+        console.log('======================================');
         
         // Check for errors in response
         if (!result) {
@@ -291,18 +300,44 @@ router.post('/sync', async (req, res) => {
         if (result.error && result.error !== 0) {
             return res.status(500).json({ 
                 success: false, 
-                message: 'Lỗi từ CGBAS: ' + (result.msg || result.message || 'Lỗi không xác định')
+                message: 'Lỗi từ CGBAS: ' + (result.msg || result.message || 'Lỗi không xác định'),
+                debug: result
             });
         }
         
-        if (!result.stationList || !Array.isArray(result.stationList)) {
+        // CGBAS API có thể trả về nhiều format khác nhau:
+        // Format 1: { stationList: [...] }
+        // Format 2: { data: { stationList: [...] } }
+        // Format 3: { data: [...] } (array trực tiếp)
+        // Format 4: { data: { records: [...] } } (NEW - actual CGBAS format)
+        let stations = null;
+        
+        if (result.stationList && Array.isArray(result.stationList)) {
+            stations = result.stationList;
+        } else if (result.data && result.data.stationList && Array.isArray(result.data.stationList)) {
+            stations = result.data.stationList;
+        } else if (result.data && result.data.records && Array.isArray(result.data.records)) {
+            // CGBAS API actual format
+            stations = result.data.records;
+        } else if (result.data && Array.isArray(result.data)) {
+            stations = result.data;
+        } else if (Array.isArray(result)) {
+            stations = result;
+        }
+        
+        if (!stations || !Array.isArray(stations)) {
+            logger.error('[Sync Stations] Invalid response format:', result);
             return res.status(500).json({ 
                 success: false, 
-                message: 'Dữ liệu trả về từ CGBAS không hợp lệ (thiếu stationList)'
+                message: 'Dữ liệu trả về từ CGBAS không hợp lệ (không tìm thấy danh sách trạm)',
+                debug: {
+                    hasStationList: !!result.stationList,
+                    hasData: !!result.data,
+                    isArray: Array.isArray(result),
+                    keys: Object.keys(result || {})
+                }
             });
         }
-
-        const stations = result.stationList;
         logger.info(`[Sync Stations] Found ${stations.length} stations from CGBAS`);
         
         let addedCount = 0;

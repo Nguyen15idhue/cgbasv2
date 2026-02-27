@@ -12,7 +12,8 @@ const routes = {
     '/history': '/partials/history.html',
     '/reports': '/partials/reports.html',
     '/logs': '/partials/logs.html',
-    '/settings': '/partials/settings.html'
+    '/settings': '/partials/settings.html',
+    '/configs': '/partials/configs.html'
 };
 
 // Clear all active intervals
@@ -92,6 +93,11 @@ const pageConfig = {
         title: 'Cài đặt',
         css: '/css/settings.css',
         js: '/js/settings.js'
+    },
+    '/configs': {
+        title: 'Cấu hình hệ thống',
+        css: '/css/configs.css',
+        js: '/js/configs.js'
     }
 };
 

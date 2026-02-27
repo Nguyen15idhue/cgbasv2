@@ -24,6 +24,7 @@ const authRoutes = require('./routes/authRoutes');
 const stationRoutes = require('./routes/stationRoutes');
 const ewelinkRoutes = require('./routes/ewelinkRoutes');
 const reportRoutes = require('./routes/reportRoutes');
+const configRoutes = require('./routes/configRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -89,7 +90,7 @@ app.use('/api/auth', authRoutes);
 // Serve partials for SPA
 app.get('/partials/:page', requireAuth, (req, res) => {
     const pageName = req.params.page;
-    const allowedPages = ['dashboard', 'queue', 'stations', 'devices', 'history', 'logs', 'settings'];
+    const allowedPages = ['dashboard', 'queue', 'stations', 'devices', 'history', 'logs', 'settings', 'configs'];
     
     if (allowedPages.includes(pageName)) {
         res.sendFile(path.join(__dirname, `../public/partials/${pageName}.html`));
@@ -128,6 +129,10 @@ app.get('/history', requireAuth, (req, res) => {
 });
 
 app.get('/settings', requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/index.html'));
+});
+
+app.get('/configs', requireAuth, (req, res) => {
     res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
@@ -195,6 +200,7 @@ app.delete('/api/queue/jobs/:stationId', requireAuth, async (req, res) => {
 app.use('/api/stations', requireAuth, stationRoutes);
 app.use('/api/ewelink', requireAuth, ewelinkRoutes);
 app.use('/api/reports', requireAuth, reportRoutes);
+app.use('/api/configs', requireAuth, configRoutes);
 
 /**
  * Hàm hỗ trợ quét thiết bị eWelink vào DB lúc khởi động

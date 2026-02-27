@@ -1,0 +1,159 @@
+<!-- Trang Cấu Hình -->
+<div class="configs-container">
+    <div class="page-header">
+        <h1><i class="fas fa-cog"></i> Cấu Hình Hệ Thống</h1>
+        <p class="text-muted">Quản lý cấu hình tài khoản và eWeLink token</p>
+    </div>
+
+    <!-- Section: Đổi Mật Khẩu -->
+    <div class="config-section">
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-key"></i> Đổi Mật Khẩu</h3>
+            </div>
+            <div class="card-body">
+                <form id="changePasswordForm">
+                    <div class="form-group">
+                        <label for="currentPassword">Mật khẩu hiện tại</label>
+                        <input type="password" class="form-control" id="currentPassword" 
+                               placeholder="Nhập mật khẩu hiện tại" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newPassword">Mật khẩu mới</label>
+                        <input type="password" class="form-control" id="newPassword" 
+                               placeholder="Nhập mật khẩu mới (ít nhất 6 ký tự)" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmPassword">Xác nhận mật khẩu mới</label>
+                        <input type="password" class="form-control" id="confirmPassword" 
+                               placeholder="Nhập lại mật khẩu mới" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Đổi Mật Khẩu
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section: Cấu Hình eWeLink Token -->
+    <div class="config-section">
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-plug"></i> Cấu Hình eWeLink</h3>
+            </div>
+            <div class="card-body">
+                <!-- Thông tin Config hiện tại -->
+                <div class="token-info" id="ewelinkInfo">
+                    <h4>Thông Tin Cấu Hình Hiện Tại</h4>
+                    <div class="info-row">
+                        <label>App ID:</label>
+                        <code id="currentAppId">Loading...</code>
+                    </div>
+                    <div class="info-row">
+                        <label>App Secret:</label>
+                        <code id="currentAppSecret">Loading...</code>
+                    </div>
+                    <div class="info-row">
+                        <label>API URL:</label>
+                        <code id="currentApiUrl">Loading...</code>
+                    </div>
+                    <div class="info-row">
+                        <label>Access Token:</label>
+                        <code id="currentAccessToken">Loading...</code>
+                    </div>
+                    <div class="info-row">
+                        <label>Refresh Token:</label>
+                        <code id="currentRefreshToken">Loading...</code>
+                    </div>
+                    <div class="info-row">
+                        <label>Token Expiry:</label>
+                        <span id="tokenExpiry">Loading...</span>
+                    </div>
+                    <div class="info-row">
+                        <label>Refresh Token Expiry:</label>
+                        <span id="refreshTokenExpiry">Loading...</span>
+                    </div>
+                </div>
+
+                <hr>
+
+                <!-- Form cập nhật Config -->
+                <form id="updateEwelinkForm">
+                    <h4>Cập Nhật Cấu Hình eWeLink</h4>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="newAppId">App ID</label>
+                                <input type="text" class="form-control" id="newAppId" 
+                                       placeholder="Nhập App ID" required>
+                                <small class="form-text text-muted">
+                                    App ID từ eWeLink Developer Console
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="newAppSecret">App Secret</label>
+                                <input type="text" class="form-control" id="newAppSecret" 
+                                       placeholder="Nhập App Secret" required>
+                                <small class="form-text text-muted">
+                                    App Secret từ eWeLink Developer Console
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="newApiUrl">API URL</label>
+                        <input type="text" class="form-control" id="newApiUrl" 
+                               placeholder="https://as-apia.coolkit.cc" required>
+                        <small class="form-text text-muted">
+                            URL API eWeLink (mặc định: https://as-apia.coolkit.cc)
+                        </small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="newAccessToken">Access Token</label>
+                        <textarea class="form-control" id="newAccessToken" rows="3" 
+                                  placeholder="Nhập Access Token từ eWeLink"></textarea>
+                        <small class="form-text text-muted">
+                            Access Token thường có thời hạn 30 ngày (không bắt buộc)
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label for="newRefreshToken">Refresh Token</label>
+                        <textarea class="form-control" id="newRefreshToken" rows="3" 
+                                  placeholder="Nhập Refresh Token từ eWeLink"></textarea>
+                        <small class="form-text text-muted">
+                            Refresh Token thường có thời hạn 60 ngày (không bắt buộc)
+                        </small>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="tokenExpiryDate">Thời gian hết hạn Access Token</label>
+                                <input type="datetime-local" class="form-control" id="tokenExpiryDate">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="refreshTokenExpiryDate">Thời gian hết hạn Refresh Token</label>
+                                <input type="datetime-local" class="form-control" id="refreshTokenExpiryDate">
+                            </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-sync-alt"></i> Cập Nhật Cấu Hình
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="btnTestToken">
+                        <i class="fas fa-vial"></i> Test Token
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Message Area -->
+    <div id="configAlert" class="alert-container"></div>
+</div>

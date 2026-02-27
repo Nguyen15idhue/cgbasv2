@@ -28,14 +28,40 @@ async function getAuthenticatedHeaders(method, path) {
 
 async function fetchStations(page = 1, size = 9999) {
     const path = '/openapi/stream/stations';
-    const headers = await getAuthenticatedHeaders('GET', path);
+    
+    try {
+        const headers = await getAuthenticatedHeaders('GET', path);
 
-    const response = await apiClient.get(path, {
-        params: { page, size },
-        headers: headers
-    });
+        const response = await apiClient.get(path, {
+            params: { page, size },
+            headers: headers
+        });
 
-    return response.data;
+        console.log('[CGBAS API] fetchStations Success:', {
+            status: response.status,
+            hasData: !!response.data,
+            dataKeys: response.data ? Object.keys(response.data) : []
+        });
+
+        return response.data;
+    } catch (error) {
+        console.error('[CGBAS API] fetchStations Error:', {
+            message: error.message,
+            status: error.response?.status,
+            statusText: error.response?.statusText,
+            data: error.response?.data,
+            url: error.config?.url,
+            method: error.config?.method,
+            headers: error.config?.headers
+        });
+        
+        // Return error object instead of throwing, so stationRoutes can handle it
+        return {
+            error: error.response?.status || -1,
+            msg: error.response?.data?.msg || error.message,
+            originalError: error.message
+        };
+    }
 }
 
 async function fetchDynamicInfo(stationIds) {
