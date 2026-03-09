@@ -154,6 +154,241 @@
         </div>
     </div>
 
+    <!-- Section: Lịch Tắt/Bật Trạm Hàng Ngày -->
+    <div class="config-section">
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-clock"></i> Lịch Tắt/Bật Trạm Hàng Ngày</h3>
+            </div>
+            <div class="card-body">
+                <!-- Trạng thái hiện tại -->
+                <div class="shutdown-status" id="shutdownStatus">
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <label>Trạng thái:</label>
+                            <span id="shutdownEnabled" class="badge">Loading...</span>
+                        </div>
+                        <div class="status-item">
+                            <label>Thời gian tắt:</label>
+                            <strong id="shutdownTime">Loading...</strong>
+                        </div>
+                        <div class="status-item">
+                            <label>Thời gian tắt (phút):</label>
+                            <strong id="shutdownDuration">Loading...</strong>
+                        </div>
+                        <div class="status-item">
+                            <label>Batch size:</label>
+                            <strong id="batchSize">Loading...</strong>
+                        </div>
+                        <div class="status-item">
+                            <label>Delay giữa batch (giây):</label>
+                            <strong id="batchDelay">Loading...</strong>
+                        </div>
+                        <div class="status-item">
+                            <label>Đang chạy:</label>
+                            <span id="isRunning" class="badge">Loading...</span>
+                            <button type="button" class="btn btn-sm btn-danger ml-2" id="btnCancelShutdown" style="display: none;">
+                                <i class="fas fa-times"></i> Hủy
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Thống kê nhãn -->
+                    <div class="label-stats" id="labelStats" style="display: none; margin-top: 15px;">
+                        <h5>Thống Kê Nhãn</h5>
+                        <div class="stats-row">
+                            <span class="stat-badge badge-warning clickable" data-status="pending">
+                                Pending: <strong id="statPending">0</strong>
+                            </span>
+                            <span class="stat-badge badge-info clickable" data-status="shutting_down">
+                                Shutting down: <strong id="statShuttingDown">0</strong>
+                            </span>
+                            <span class="stat-badge badge-primary clickable" data-status="waiting_poweron">
+                                Waiting poweron: <strong id="statWaitingPoweron">0</strong>
+                            </span>
+                            <span class="stat-badge badge-secondary clickable" data-status="powering_on">
+                                Powering on: <strong id="statPoweringOn">0</strong>
+                            </span>
+                            <span class="stat-badge badge-success clickable" data-status="completed">
+                                Completed: <strong id="statCompleted">0</strong>
+                            </span>
+                            <span class="stat-badge badge-danger clickable" data-status="failed">
+                                Failed: <strong id="statFailed">0</strong>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <hr>
+
+                <!-- Lịch sử gần đây -->
+                <div class="history-section">
+                    <h4><i class="fas fa-history"></i> Lịch Sử Thực Hiện</h4>
+                    <div class="table-responsive">
+                        <table class="table" id="shutdownHistoryTable">
+                            <thead>
+                                <tr>
+                                    <th>Ngày</th>
+                                    <th>Bắt đầu</th>
+                                    <th>Kết thúc</th>
+                                    <th>Tổng trạm</th>
+                                    <th>Thành công</th>
+                                    <th>Thất bại</th>
+                                    <th>Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTableBody">
+                                <tr>
+                                    <td colspan="7" class="text-center">Đang tải...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- Phân trang -->
+                    <div class="pagination-controls" id="historyPagination" style="display: none;">
+                        <button type="button" class="btn btn-sm btn-secondary" id="btnPrevPage" disabled>
+                            <i class="fas fa-chevron-left"></i> Trước
+                        </button>
+                        <span class="page-info" id="pageInfo">Trang 1 / 1</span>
+                        <button type="button" class="btn btn-sm btn-secondary" id="btnNextPage" disabled>
+                            Sau <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <hr>
+
+                <!-- Form cập nhật Config -->
+                <form id="updateShutdownForm">
+                    <h4><i class="fas fa-edit"></i> Cấu Hình Lịch Tắt/Bật</h4>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Lưu ý:</strong> Hệ thống sẽ tự động tắt tất cả trạm đã ánh xạ eWeLink vào thời gian cố định mỗi ngày, 
+                        sau đó tự động bật lại. Xử lý theo batch để tránh vượt rate limit.
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="newShutdownTime">
+                                    <i class="fas fa-clock"></i> Thời gian tắt (HH:MM:SS)
+                                </label>
+                                <input type="text" class="form-control" id="newShutdownTime" 
+                                       placeholder="02:00:00" 
+                                       pattern="([01]\d|2[0-3]):[0-5]\d:[0-5]\d"
+                                       title="Định dạng: HH:MM:SS (ví dụ: 02:00:00)"
+                                       required>
+                                <small class="form-text text-muted">
+                                    Thời gian bắt đầu tắt trạm hàng ngày (ví dụ: 02:00:00, 23:30:00)
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="newShutdownDuration">
+                                    <i class="fas fa-hourglass-half"></i> Thời gian tắt (phút)
+                                </label>
+                                <input type="number" class="form-control" id="newShutdownDuration" 
+                                       min="1" max="60" required>
+                                <small class="form-text text-muted">
+                                    Thời gian tắt trước khi bật lại (1-60 phút)
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="newBatchSize">
+                                    <i class="fas fa-layer-group"></i> Batch Size
+                                </label>
+                                <input type="number" class="form-control" id="newBatchSize" 
+                                       min="1" max="20" required>
+                                <small class="form-text text-muted">
+                                    Số trạm xử lý mỗi lần (1-20, khuyến nghị: 5)
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="newBatchDelay">
+                                    <i class="fas fa-stopwatch"></i> Delay giữa batch (giây)
+                                </label>
+                                <input type="number" class="form-control" id="newBatchDelay" 
+                                       min="5" max="60" required>
+                                <small class="form-text text-muted">
+                                    Thời gian chờ giữa các batch (5-60 giây)
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="custom-control custom-switch">
+                            <input type="checkbox" class="custom-control-input" id="newShutdownEnabled">
+                            <label class="custom-control-label" for="newShutdownEnabled">
+                                <strong>Bật tính năng tắt/bật tự động hàng ngày</strong>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Lưu Cấu Hình
+                        </button>
+                        <button type="button" class="btn btn-warning" id="btnTestShutdown">
+                            <i class="fas fa-play"></i> Test Ngay (Thủ Công)
+                        </button>
+                        <button type="button" class="btn btn-info" id="btnRefreshStatus">
+                            <i class="fas fa-sync-alt"></i> Làm Mới
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Alert Message Area -->
     <div id="configAlert" class="alert-container"></div>
+
+    <!-- Modal: Danh sách trạm -->
+    <div class="modal fade" id="stationsModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-list"></i> Danh Sách Trạm - <span id="modalStatusTitle"></span>
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Tên Trạm</th>
+                                    <th>Identification</th>
+                                    <th>Thời Gian</th>
+                                    <th>Lỗi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stationsModalBody">
+                                <tr>
+                                    <td colspan="5" class="text-center">Đang tải...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Đóng</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>

@@ -4,10 +4,18 @@ console.log('[Configs] Loading configs page...');
 // Load eWeLink configuration when page loads
 loadEwelinkConfig();
 
+// Load scheduled shutdown configuration
+loadScheduledShutdownConfig();
+
 // Event Listeners
 document.getElementById('changePasswordForm').addEventListener('submit', handleChangePassword);
 document.getElementById('updateEwelinkForm').addEventListener('submit', handleUpdateEwelink);
 document.getElementById('btnTestToken').addEventListener('click', handleTestToken);
+
+// Scheduled Shutdown Event Listeners
+document.getElementById('updateShutdownForm').addEventListener('submit', handleUpdateScheduledShutdown);
+document.getElementById('btnTestShutdown').addEventListener('click', handleTestShutdown);
+document.getElementById('btnRefreshStatus').addEventListener('click', loadScheduledShutdownConfig);
 
 /**
  * Load current eWeLink configuration
@@ -299,5 +307,426 @@ function getAlertIcon(type) {
     };
     return icons[type] || 'info-circle';
 }
+
+// ==================== SCHEDULED SHUTDOWN FUNCTIONS ====================
+
+/**
+ * Load scheduled shutdown configuration and status
+ */
+async function loadScheduledShutdownConfig() {
+    try {
+        // Load config and status
+        const [configResponse, statusResponse] = await Promise.all([
+            fetch('/api/scheduled-shutdown/config'),
+            fetch('/api/scheduled-shutdown/status')
+        ]);
+
+        const configResult = await configResponse.json();
+        const statusResult = await statusResponse.json();
+
+        if (configResult.success && configResult.data) {
+            const config = configResult.data;
+            
+            // Update status display
+            document.getElementById('shutdownEnabled').textContent = config.is_enabled ? 'Đang bật' : 'Đã tắt';
+            document.getElementById('shutdownEnabled').className = config.is_enabled ? 'badge badge-success' : 'badge badge-secondary';
+            
+            document.getElementById('shutdownTime').textContent = config.shutdown_time || 'N/A';
+            document.getElementById('shutdownDuration').textContent = config.shutdown_duration_minutes + ' phút';
+            document.getElementById('batchSize').textContent = config.batch_size + ' trạm';
+            document.getElementById('batchDelay').textContent = config.batch_delay_seconds + ' giây';
+            
+            // Pre-fill form
+            // Đảm bảo format đúng HH:MM:SS
+            let timeValue = '02:00:00';
+            if (config.shutdown_time) {
+                // MySQL TIME trả về format "HH:MM:SS"
+                timeValue = config.shutdown_time;
+            }
+            
+            console.log('[Configs] Setting time input:', timeValue);
+            document.getElementById('newShutdownTime').value = timeValue;
+            document.getElementById('newShutdownDuration').value = config.shutdown_duration_minutes || 5;
+            document.getElementById('newBatchSize').value = config.batch_size || 5;
+            document.getElementById('newBatchDelay').value = config.batch_delay_seconds || 10;
+            document.getElementById('newShutdownEnabled').checked = config.is_enabled || false;
+        }
+
+        if (statusResult.success && statusResult.data) {
+            const status = statusResult.data;
+            
+            // Update running status
+            document.getElementById('isRunning').textContent = status.is_running ? 'Đang chạy' : 'Không';
+            document.getElementById('isRunning').className = status.is_running ? 'badge badge-warning' : 'badge badge-secondary';
+            
+            // Show/hide cancel button
+            const btnCancel = document.getElementById('btnCancelShutdown');
+            if (status.is_running) {
+                btnCancel.style.display = 'inline-block';
+            } else {
+                btnCancel.style.display = 'none';
+            }
+            
+            // Update label statistics
+            const labelStats = document.getElementById('labelStats');
+            if (status.label_statistics && status.label_statistics.length > 0) {
+                labelStats.style.display = 'block';
+                
+                // Reset counts
+                document.getElementById('statPending').textContent = '0';
+                document.getElementById('statShuttingDown').textContent = '0';
+                document.getElementById('statWaitingPoweron').textContent = '0';
+                document.getElementById('statPoweringOn').textContent = '0';
+                document.getElementById('statCompleted').textContent = '0';
+                document.getElementById('statFailed').textContent = '0';
+                
+                // Update counts
+                status.label_statistics.forEach(stat => {
+                    if (stat.status === 'pending') {
+                        document.getElementById('statPending').textContent = stat.count;
+                    } else if (stat.status === 'shutting_down') {
+                        document.getElementById('statShuttingDown').textContent = stat.count;
+                    } else if (stat.status === 'waiting_poweron') {
+                        document.getElementById('statWaitingPoweron').textContent = stat.count;
+                    } else if (stat.status === 'powering_on') {
+                        document.getElementById('statPoweringOn').textContent = stat.count;
+                    } else if (stat.status === 'completed') {
+                        document.getElementById('statCompleted').textContent = stat.count;
+                    } else if (stat.status === 'failed') {
+                        document.getElementById('statFailed').textContent = stat.count;
+                    }
+                });
+            } else {
+                labelStats.style.display = 'none';
+            }
+            
+            // Update history table
+            updateHistoryTable(status.recent_history || []);
+        }
+    } catch (error) {
+        console.error('[Configs] Error loading scheduled shutdown config:', error);
+        showAlert('danger', 'Lỗi tải cấu hình Scheduled Shutdown');
+    }
+}
+
+/**
+ * Update history table
+ */
+function updateHistoryTable(history) {
+    const tbody = document.getElementById('historyTableBody');
+    
+    if (history.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Chưa có lịch sử thực hiện</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = history.map(h => {
+        const statusBadge = h.status === 'completed' 
+            ? '<span class="badge badge-success">Hoàn thành</span>' 
+            : h.status === 'running' 
+            ? '<span class="badge badge-warning">Đang chạy</span>' 
+            : '<span class="badge badge-danger">Thất bại</span>';
+        
+        const startTime = h.started_at ? new Date(h.started_at).toLocaleString('vi-VN') : 'N/A';
+        const endTime = h.completed_at ? new Date(h.completed_at).toLocaleString('vi-VN') : 'N/A';
+        const executionDate = h.execution_date ? new Date(h.execution_date).toLocaleDateString('vi-VN') : 'N/A';
+        
+        return `
+            <tr>
+                <td>${executionDate}</td>
+                <td><small>${startTime}</small></td>
+                <td><small>${endTime}</small></td>
+                <td>${h.total_stations || 0}</td>
+                <td class="text-success"><strong>${h.successful_stations || 0}</strong></td>
+                <td class="text-danger"><strong>${h.failed_stations || 0}</strong></td>
+                <td>${statusBadge}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+/**
+ * Handle update scheduled shutdown config
+ */
+async function handleUpdateScheduledShutdown(e) {
+    e.preventDefault();
+    
+    const shutdownTime = document.getElementById('newShutdownTime').value.trim();
+    
+    console.log('[Configs] Time input value:', shutdownTime);
+    
+    const shutdownDuration = parseInt(document.getElementById('newShutdownDuration').value);
+    const batchSize = parseInt(document.getElementById('newBatchSize').value);
+    const batchDelay = parseInt(document.getElementById('newBatchDelay').value);
+    const isEnabled = document.getElementById('newShutdownEnabled').checked;
+    
+    // Validate
+    if (!shutdownTime || !shutdownDuration || !batchSize || !batchDelay) {
+        showAlert('danger', 'Vui lòng nhập đầy đủ thông tin!');
+        return;
+    }
+    
+    // Validate time format HH:MM:SS
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/;
+    if (!timeRegex.test(shutdownTime)) {
+        showAlert('danger', 'Định dạng thời gian không hợp lệ! Vui lòng nhập theo định dạng HH:MM:SS (ví dụ: 02:00:00)');
+        return;
+    }
+    
+    if (shutdownDuration < 1 || shutdownDuration > 60) {
+        showAlert('danger', 'Thời gian tắt phải từ 1-60 phút!');
+        return;
+    }
+    
+    if (batchSize < 1 || batchSize > 20) {
+        showAlert('danger', 'Batch size phải từ 1-20!');
+        return;
+    }
+    
+    if (batchDelay < 5 || batchDelay > 60) {
+        showAlert('danger', 'Batch delay phải từ 5-60 giây!');
+        return;
+    }
+    
+    // Confirm
+    if (!confirm('Bạn có chắc muốn cập nhật cấu hình lịch tắt/bật trạm?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/scheduled-shutdown/config', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                shutdown_time: shutdownTime,
+                shutdown_duration_minutes: shutdownDuration,
+                batch_size: batchSize,
+                batch_delay_seconds: batchDelay,
+                is_enabled: isEnabled
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert('success', 'Cập nhật cấu hình thành công!');
+            setTimeout(() => loadScheduledShutdownConfig(), 1000);
+        } else {
+            showAlert('danger', result.message || 'Cập nhật cấu hình thất bại!');
+        }
+    } catch (error) {
+        console.error('[Configs] Error updating scheduled shutdown:', error);
+        showAlert('danger', 'Lỗi kết nối server');
+    }
+}
+
+/**
+ * Handle test shutdown
+ */
+async function handleTestShutdown() {
+    if (!confirm('Bạn có chắc muốn thực hiện test tắt/bật trạm NGAY BÂY GIỜ? Tất cả trạm sẽ bị tắt!')) {
+        return;
+    }
+    
+    try {
+        showAlert('info', 'Đang bắt đầu quy trình tắt/bật trạm...');
+        
+        const response = await fetch('/api/scheduled-shutdown/execute', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert('success', 'Đã bắt đầu quy trình! Theo dõi logs để xem tiến trình.');
+            
+            // Reload status after 2 seconds
+            setTimeout(() => loadScheduledShutdownConfig(), 2000);
+        } else {
+            showAlert('danger', result.message || 'Không thể thực thi!');
+        }
+    } catch (error) {
+        console.error('[Configs] Error executing test shutdown:', error);
+        showAlert('danger', 'Lỗi kết nối server');
+    }
+}
+
+/**
+ * Handle cancel shutdown
+ */
+async function handleCancelShutdown() {
+    if (!confirm('Bạn có chắc muốn HỦY quy trình đang chạy?')) {
+        return;
+    }
+    
+    try {
+        showAlert('info', 'Đang gửi yêu cầu hủy...');
+        
+        const response = await fetch('/api/scheduled-shutdown/cancel', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert('success', 'Đã gửi yêu cầu hủy! Quy trình sẽ dừng lại.');
+            setTimeout(() => loadScheduledShutdownConfig(), 1000);
+        } else {
+            showAlert('warning', result.message || 'Không có quy trình nào đang chạy');
+        }
+    } catch (error) {
+        console.error('[Configs] Error cancelling shutdown:', error);
+        showAlert('danger', 'Lỗi kết nối server');
+    }
+}
+
+/**
+ * Show stations by status in modal
+ */
+async function showStationsByStatus(status) {
+    try {
+        const modal = document.getElementById('stationsModal');
+        const modalBody = document.getElementById('stationsModalBody');
+        const modalTitle = document.getElementById('modalStatusTitle');
+        
+        // Set title
+        const statusTitles = {
+            'pending': 'Pending',
+            'shutting_down': 'Shutting Down',
+            'waiting_poweron': 'Waiting Poweron',
+            'powering_on': 'Powering On',
+            'completed': 'Completed',
+            'failed': 'Failed'
+        };
+        modalTitle.textContent = statusTitles[status] || status;
+        
+        // Show loading
+        modalBody.innerHTML = '<tr><td colspan="5" class="text-center">Đang tải...</td></tr>';
+        modal.classList.add('show');
+        
+        // Fetch stations
+        const response = await fetch(`/api/scheduled-shutdown/stations?status=${status}`);
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+            const stations = result.data;
+            
+            if (stations.length === 0) {
+                modalBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Không có trạm nào</td></tr>';
+                return;
+            }
+            
+            modalBody.innerHTML = stations.map(s => {
+                const labeledTime = s.labeled_at ? new Date(s.labeled_at).toLocaleString('vi-VN') : 'N/A';
+                return `
+                    <tr>
+                        <td>${s.station_id}</td>
+                        <td>${s.stationName || 'N/A'}</td>
+                        <td>${s.identificationName || 'N/A'}</td>
+                        <td><small>${labeledTime}</small></td>
+                        <td><small class="text-danger">${s.error_message || '-'}</small></td>
+                    </tr>
+                `;
+            }).join('');
+        } else {
+            modalBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>';
+        }
+    } catch (error) {
+        console.error('[Configs] Error loading stations:', error);
+        document.getElementById('stationsModalBody').innerHTML = '<tr><td colspan="5" class="text-center text-danger">Lỗi kết nối</td></tr>';
+    }
+}
+
+/**
+ * Close modal
+ */
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    modal.classList.remove('show');
+}
+
+/**
+ * Load history with pagination
+ */
+let currentPage = 1;
+const historyPerPage = 10;
+
+async function loadHistoryPage(page) {
+    try {
+        const response = await fetch(`/api/scheduled-shutdown/history?page=${page}&limit=${historyPerPage}`);
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+            currentPage = page;
+            const { data, pagination } = result.data;
+            
+            // Update table
+            updateHistoryTable(data);
+            
+            // Update pagination controls
+            const paginationDiv = document.getElementById('historyPagination');
+            if (pagination.totalPages > 1) {
+                paginationDiv.style.display = 'flex';
+                document.getElementById('pageInfo').textContent = `Trang ${pagination.page} / ${pagination.totalPages}`;
+                
+                // Enable/disable buttons
+                document.getElementById('btnPrevPage').disabled = pagination.page <= 1;
+                document.getElementById('btnNextPage').disabled = pagination.page >= pagination.totalPages;
+            } else {
+                paginationDiv.style.display = 'none';
+            }
+        }
+    } catch (error) {
+        console.error('[Configs] Error loading history page:', error);
+    }
+}
+
+// Set up event listeners for Cancel button
+document.getElementById('btnCancelShutdown').addEventListener('click', handleCancelShutdown);
+
+// Set up event listeners for stat badges (click to show stations)
+document.querySelectorAll('.stat-badge.clickable').forEach(badge => {
+    badge.addEventListener('click', function() {
+        const status = this.getAttribute('data-status');
+        showStationsByStatus(status);
+    });
+});
+
+// Set up event listeners for modal close
+document.querySelectorAll('[data-dismiss="modal"]').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const modal = this.closest('.modal');
+        modal.classList.remove('show');
+    });
+});
+
+// Close modal when clicking outside
+window.addEventListener('click', function(event) {
+    if (event.target.classList.contains('modal')) {
+        event.target.classList.remove('show');
+    }
+});
+
+// Set up pagination event listeners
+document.getElementById('btnPrevPage').addEventListener('click', () => {
+    if (currentPage > 1) {
+        loadHistoryPage(currentPage - 1);
+    }
+});
+
+document.getElementById('btnNextPage').addEventListener('click', () => {
+    loadHistoryPage(currentPage + 1);
+});
+
+// Load first page of history on startup
+loadHistoryPage(1);
 
 console.log('[Configs] Configs page loaded successfully');

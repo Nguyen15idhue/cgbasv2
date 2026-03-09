@@ -3,6 +3,7 @@ const logger = require('./logger');
 const { fetchStations, fetchDynamicInfo } = require('../services/cgbasApi');
 const { upsertStations, upsertDynamicInfo, getAllStationIds } = require('../repository/stationRepo');
 const { checkAndTriggerRecovery } = require('./autoMonitor'); // Import bộ giám sát mới
+const scheduledShutdownService = require('../services/scheduledShutdownService'); // Import scheduled shutdown
 
 let isSyncing = false;
 
@@ -56,7 +57,23 @@ function initCronJobs() {
         }
     });
 
-    logger.info('🚀 Scheduler: 5s (Satellite & Recovery Monitor) | 1h (Station List).');
+    // Tác vụ 3: Kiểm tra lịch tắt/bật trạm hàng ngày (mỗi 30 giây)
+    cron.schedule('*/30 * * * * *', async () => {
+        try {
+            const shouldRun = await scheduledShutdownService.shouldExecuteNow();
+            if (shouldRun) {
+                logger.info('[Scheduler] ⏰ Đến giờ thực hiện scheduled shutdown!');
+                // Chạy bất đồng bộ để không block scheduler
+                scheduledShutdownService.execute().catch(err => {
+                    logger.error('[Scheduler] Lỗi scheduled shutdown: ' + err.message);
+                });
+            }
+        } catch (e) {
+            logger.error('[Scheduler] Lỗi kiểm tra scheduled shutdown: ' + e.message);
+        }
+    });
+
+    logger.info('🚀 Scheduler: 5s (Satellite & Recovery) | 1h (Station List) | 30s (Scheduled Shutdown Check).');
 }
 
 module.exports = { initCronJobs };

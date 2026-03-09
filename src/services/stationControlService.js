@@ -130,6 +130,20 @@ async function runAutoRecovery(job) {
     const { station_id, device_id, retry_index } = job;
     
     try {
+        // -1. KIỂM TRA XEM TRẠM CÓ ĐANG TRONG QUÁ TRÌNH SCHEDULED SHUTDOWN KHÔNG (chỉ các trạng thái active)
+        const [scheduledShutdown] = await db.execute(
+            "SELECT station_id FROM scheduled_shutdown_labels WHERE station_id = ? AND status IN ('pending', 'shutting_down', 'waiting_poweron', 'powering_on')",
+            [station_id]
+        );
+        
+        if (scheduledShutdown.length > 0) {
+            logger.info(`[Job ${station_id}] ⏸️  Trạm đang trong quy trình SCHEDULED SHUTDOWN. Bỏ qua recovery.`);
+            // Lưu lịch sử và xóa job
+            await saveToHistory(station_id, device_id, 'SKIPPED', retry_index + 1, 'Đang trong scheduled shutdown');
+            await db.execute('DELETE FROM station_recovery_jobs WHERE station_id = ?', [station_id]);
+            return;
+        }
+        
         // 0. KIỂM TRA CGBAS TRƯỚC KHI BẮT ĐẦU (từ retry thứ 2 trở đi)
         if (retry_index >= 1) {
             logger.info(`[Job ${station_id}] 🔍 Kiểm tra CGBAS trước khi thực hiện (Lần thử ${retry_index + 1})...`);

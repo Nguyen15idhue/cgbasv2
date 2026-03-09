@@ -53,9 +53,12 @@ async function checkAndTriggerRecovery() {
             FROM stations s
             JOIN station_dynamic_info d ON s.id = d.stationId
             LEFT JOIN station_recovery_jobs j ON s.id = j.station_id
+            LEFT JOIN scheduled_shutdown_labels sslabel ON s.id = sslabel.station_id 
+                AND sslabel.status IN ('pending', 'shutting_down', 'waiting_poweron', 'powering_on')
             WHERE s.ewelink_device_id IS NOT NULL
             AND s.is_active = 1
             AND j.id IS NULL
+            AND sslabel.station_id IS NULL
             AND (
                 -- Case 1: Offline hoàn toàn >= 30 giây
                 (d.connectStatus = 3 AND d.offline_duration_seconds >= ?)
