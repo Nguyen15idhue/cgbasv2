@@ -5,7 +5,8 @@ const logger = require('./logger');
 // Ngưỡng thời gian cho các trạng thái khác nhau
 const OFFLINE_THRESHOLD = 30;        // Status 3 (Offline): 30 giây → Tạo Job ngay
 const LOST_DATA_THRESHOLD = 300;     // Status 2 (Lost Data): 5 phút → Tạo Job nếu không tự phục hồi
-const RECOVERY_MAX_CONCURRENT_JOBS = 3; // Giới hạn số job recovery chạy song song để tránh dồn API
+const RECOVERY_MAX_CONCURRENT_JOBS = 10; // Giới hạn số job recovery chạy song song để tránh dồn API
+const RECOVERY_DISPATCH_LOCK = 'recovery_dispatch_lock';
 
 async function checkAndTriggerRecovery() {
     const now = new Date();
@@ -80,6 +81,15 @@ async function checkAndTriggerRecovery() {
         }
         
         // ===== BƯỚC 3: CHẠY CÁC JOB ĐANG PENDING (CÓ GIỚI HẠN ĐỒNG THỜI) =====
+        // Dùng advisory lock để serialize dispatcher giữa nhiều tiến trình/node.
+        const [lockRows] = await db.execute('SELECT GET_LOCK(?, 0) as lock_ok', [RECOVERY_DISPATCH_LOCK]);
+        const lockOk = Number(lockRows?.[0]?.lock_ok || 0) === 1;
+
+        if (!lockOk) {
+            return;
+        }
+
+        try {
         const [activeJobs] = await db.query(`
             SELECT COUNT(*) as total
             FROM station_recovery_jobs
@@ -115,6 +125,9 @@ async function checkAndTriggerRecovery() {
             runAutoRecovery(job).catch((err) => {
                 logger.error(`[Monitor] Lỗi chạy job recovery ${job.id}: ${err.message}`);
             });
+        }
+        } finally {
+            await db.execute('SELECT RELEASE_LOCK(?)', [RECOVERY_DISPATCH_LOCK]);
         }
         
     } catch (error) {
