@@ -7,6 +7,7 @@ const OFFLINE_THRESHOLD = 30;        // Status 3 (Offline): 30 giây → Tạo J
 const LOST_DATA_THRESHOLD = 300;     // Status 2 (Lost Data): 5 phút → Tạo Job nếu không tự phục hồi
 const RECOVERY_MAX_CONCURRENT_JOBS = 10; // Giới hạn số job recovery chạy song song để tránh dồn API
 const RECOVERY_DISPATCH_LOCK = 'recovery_dispatch_lock';
+const RECOVERY_STALE_TIMEOUT_MINUTES = 10; // Tự phục hồi job bị kẹt RUNNING/CHECKING
 
 async function checkAndTriggerRecovery() {
     const now = new Date();
@@ -81,53 +82,79 @@ async function checkAndTriggerRecovery() {
         }
         
         // ===== BƯỚC 3: CHẠY CÁC JOB ĐANG PENDING (CÓ GIỚI HẠN ĐỒNG THỜI) =====
-        // Dùng advisory lock để serialize dispatcher giữa nhiều tiến trình/node.
-        const [lockRows] = await db.execute('SELECT GET_LOCK(?, 0) as lock_ok', [RECOVERY_DISPATCH_LOCK]);
-        const lockOk = Number(lockRows?.[0]?.lock_ok || 0) === 1;
-
-        if (!lockOk) {
-            return;
-        }
+        // Advisory lock phải dùng cùng 1 connection để tránh lock bị treo vĩnh viễn.
+        const lockConn = await db.getConnection();
+        let lockAcquired = false;
+        const claimedJobs = [];
 
         try {
-        const [activeJobs] = await db.query(`
-            SELECT COUNT(*) as total
-            FROM station_recovery_jobs
-            WHERE status IN ('RUNNING', 'CHECKING')
-        `);
+            const [lockRows] = await lockConn.execute('SELECT GET_LOCK(?, 0) as lock_ok', [RECOVERY_DISPATCH_LOCK]);
+            lockAcquired = Number(lockRows?.[0]?.lock_ok || 0) === 1;
 
-        const runningCount = activeJobs[0]?.total || 0;
-        const availableSlots = Math.max(0, RECOVERY_MAX_CONCURRENT_JOBS - runningCount);
-
-        if (availableSlots <= 0) {
-            return;
-        }
-
-        const [jobsToRun] = await db.query(`
-            SELECT * FROM station_recovery_jobs
-            WHERE status = 'PENDING' AND next_run_time <= NOW()
-            ORDER BY next_run_time ASC
-            LIMIT ${availableSlots}
-        `);
-
-        for (const job of jobsToRun) {
-            // Claim job trước khi chạy để tránh scheduler kế tiếp lấy trùng
-            const [claimResult] = await db.execute(
-                'UPDATE station_recovery_jobs SET status = "RUNNING" WHERE id = ? AND status = "PENDING"',
-                [job.id]
-            );
-
-            if (claimResult.affectedRows === 0) {
-                continue;
+            if (!lockAcquired) {
+                return;
             }
 
-            // Chạy bất đồng bộ để không block scheduler vòng 5s
+            // Tự động phục hồi job bị kẹt để tránh full slot giả.
+            const [staleFix] = await lockConn.execute(
+                `UPDATE station_recovery_jobs
+                 SET status = 'PENDING', next_run_time = NOW()
+                 WHERE status IN ('RUNNING', 'CHECKING')
+                 AND updated_at < NOW() - INTERVAL ${RECOVERY_STALE_TIMEOUT_MINUTES} MINUTE`
+            );
+
+            if ((staleFix?.affectedRows || 0) > 0) {
+                logger.warn(`[Monitor] Đã reset ${staleFix.affectedRows} job bị kẹt RUNNING/CHECKING > ${RECOVERY_STALE_TIMEOUT_MINUTES} phút.`);
+            }
+
+            const [activeJobs] = await lockConn.query(`
+                SELECT COUNT(*) as total
+                FROM station_recovery_jobs
+                WHERE status IN ('RUNNING', 'CHECKING')
+            `);
+
+            const runningCount = activeJobs[0]?.total || 0;
+            const availableSlots = Math.max(0, RECOVERY_MAX_CONCURRENT_JOBS - runningCount);
+
+            if (availableSlots <= 0) {
+                return;
+            }
+
+            const [jobsToRun] = await lockConn.query(`
+                SELECT * FROM station_recovery_jobs
+                WHERE status = 'PENDING' AND next_run_time <= NOW()
+                ORDER BY next_run_time ASC
+                LIMIT ${availableSlots}
+            `);
+
+            for (const job of jobsToRun) {
+                // Claim job trước khi chạy để tránh scheduler kế tiếp lấy trùng.
+                const [claimResult] = await lockConn.execute(
+                    'UPDATE station_recovery_jobs SET status = "RUNNING" WHERE id = ? AND status = "PENDING"',
+                    [job.id]
+                );
+
+                if (claimResult.affectedRows === 0) {
+                    continue;
+                }
+
+                claimedJobs.push(job);
+            }
+        } finally {
+            try {
+                if (lockAcquired) {
+                    await lockConn.execute('SELECT RELEASE_LOCK(?)', [RECOVERY_DISPATCH_LOCK]);
+                }
+            } finally {
+                lockConn.release();
+            }
+        }
+
+        // Chạy bất đồng bộ ngoài lock để giảm thời gian giữ lock.
+        for (const job of claimedJobs) {
             runAutoRecovery(job).catch((err) => {
                 logger.error(`[Monitor] Lỗi chạy job recovery ${job.id}: ${err.message}`);
             });
-        }
-        } finally {
-            await db.execute('SELECT RELEASE_LOCK(?)', [RECOVERY_DISPATCH_LOCK]);
         }
         
     } catch (error) {
