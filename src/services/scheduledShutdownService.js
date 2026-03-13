@@ -3,6 +3,9 @@ const ewelinkService = require('./ewelinkService');
 const logger = require('../utils/logger');
 const { sleep } = require('../utils/helper');
 
+const LOCAL_TIMEZONE = 'Asia/Ho_Chi_Minh';
+const SCHEDULE_TRIGGER_WINDOW_SECONDS = 5 * 60; // 5 phút để tránh chạy bù quá xa
+
 /**
  * DỊCH VỤ TẮT/BẬT TRẠM THEO LỊCH HÀNG NGÀY
  * 
@@ -18,6 +21,32 @@ class ScheduledShutdownService {
         this.isRunning = false;
         this.currentExecutionId = null;
         this.shouldCancel = false; // Flag để hủy quy trình
+    }
+
+    /**
+     * Lấy ngày giờ local (VN) ổn định, tránh lệch UTC khi dùng toISOString()
+     */
+    getLocalDateTimeParts() {
+        const now = new Date();
+        const formatter = new Intl.DateTimeFormat('en-CA', {
+            timeZone: LOCAL_TIMEZONE,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+
+        const parts = formatter.formatToParts(now);
+        const partMap = Object.fromEntries(parts.map(p => [p.type, p.value]));
+
+        const date = `${partMap.year}-${partMap.month}-${partMap.day}`;
+        const time = `${partMap.hour}:${partMap.minute}:${partMap.second}`;
+        const seconds = Number(partMap.hour) * 3600 + Number(partMap.minute) * 60 + Number(partMap.second);
+
+        return { date, time, seconds };
     }
 
     /**
@@ -74,8 +103,8 @@ class ScheduledShutdownService {
                 "UPDATE scheduled_shutdown_history SET status = 'failed', notes = 'Timeout - auto cleanup (30min)', completed_at = NOW() WHERE status = 'running' AND started_at < NOW() - INTERVAL 30 MINUTE"
             );
 
-            const now = new Date();
-            const currentTime = now.toTimeString().split(' ')[0]; // HH:MM:SS
+            const localNow = this.getLocalDateTimeParts();
+            const currentTime = localNow.time;
             const targetTime = config.shutdown_time;
 
             // Parse thời gian
@@ -85,16 +114,12 @@ class ScheduledShutdownService {
             const targetSeconds = targetH * 3600 + targetM * 60 + targetS;
             const currentSeconds = currentH * 3600 + currentM * 60 + currentS;
             
-            // Kiểm tra: Thời gian hiện tại ĐÃ QUA target time (nhưng không quá 12 giờ)
+            // Kiểm tra: Thời gian hiện tại vừa qua target time trong cửa sổ nhỏ
             const diff = currentSeconds - targetSeconds;
-            
-            // Chỉ trigger nếu:
-            // 1. Đã qua giờ target (diff >= 0)
-            // 2. Chưa quá 12 tiếng (để tránh trigger sáng hôm sau với lịch đêm hôm trước)
-            const MAX_WINDOW = 12 * 3600; // 12 hours
-            
-            if (diff >= 0 && diff <= MAX_WINDOW) {
-                const today = now.toISOString().split('T')[0];
+
+            // Chỉ trigger nếu vừa qua giờ chạy (cron chạy mỗi 30s, cửa sổ 5 phút là đủ an toàn)
+            if (diff >= 0 && diff <= SCHEDULE_TRIGGER_WINDOW_SECONDS) {
+                const today = localNow.date;
                 
                 // Kiểm tra xem có execution ĐANG CHẠY không (bao gồm cả đang sleep)
                 const [runningExecution] = await db.execute(
@@ -107,16 +132,20 @@ class ScheduledShutdownService {
                     return false;
                 }
                 
-                // Kiểm tra xem hôm nay đã chạy THÀNH CÔNG chưa
-                const [completedExecution] = await db.execute(
-                    'SELECT id FROM scheduled_shutdown_history WHERE execution_date = ? AND status = "completed"',
+                // Chặn chạy lại trong cùng 1 ngày local (dù status là gì)
+                const [existingExecution] = await db.execute(
+                    'SELECT id, status FROM scheduled_shutdown_history WHERE execution_date = ? ORDER BY started_at DESC LIMIT 1',
                     [today]
                 );
-                
-                if (completedExecution.length === 0) {
+
+                if (existingExecution.length === 0) {
                     logger.info(`[ScheduledShutdown] ⏰ Đến giờ thực hiện! Current: ${currentTime}, Target: ${targetTime}, Diff: ${diff}s`);
                     return true;
                 }
+
+                logger.warn(
+                    `[ScheduledShutdown] Bỏ qua trigger: ${today} đã có execution id=${existingExecution[0].id}, status=${existingExecution[0].status}`
+                );
             }
             
             return false;
@@ -280,7 +309,11 @@ class ScheduledShutdownService {
                 return;
             }
             
-            const today = new Date().toISOString().split('T')[0];
+            const localNow = this.getLocalDateTimeParts();
+            const today = localNow.date;
+            const batchSize = parseInt(config.batch_size, 10) || 5;
+            const batchDelaySeconds = parseInt(config.batch_delay_seconds, 10) || 10;
+            const shutdownDurationMinutes = parseInt(config.shutdown_duration_minutes, 10) || 5;
             
             // Tạo bản ghi lịch sử
             const [result] = await db.execute(
@@ -307,7 +340,7 @@ class ScheduledShutdownService {
             }
             
             // BƯỚC 2: Tắt tất cả trạm theo batch
-            logger.info(`[ScheduledShutdown] BƯỚC 2: Tắt ${totalStations} trạm (batch size: ${config.batch_size})...`);
+            logger.info(`[ScheduledShutdown] BƯỚC 2: Tắt ${totalStations} trạm (batch size: ${batchSize})...`);
             
             let offset = 0;
             let successCount = 0;
@@ -324,13 +357,12 @@ class ScheduledShutdownService {
                 }
                 
                 // Lấy batch trạm có nhãn 'pending' hoặc 'shutting_down'
-                const batchLimit = parseInt(config.batch_size) || 5;
                 const [batch] = await db.query(
                     `SELECT sl.station_id, s.ewelink_device_id as device_id 
                      FROM scheduled_shutdown_labels sl 
                      JOIN stations s ON sl.station_id = s.id 
                      WHERE sl.status IN ('pending', 'shutting_down') 
-                     LIMIT ${batchLimit}`
+                     LIMIT ${batchSize}`
                 );
                 
                 if (batch.length === 0) break;
@@ -342,9 +374,9 @@ class ScheduledShutdownService {
                 results.forEach(r => r.success ? successCount++ : failCount++);
                 
                 // Delay giữa các batch
-                if (batch.length === config.batch_size) {
-                    logger.info(`[ScheduledShutdown] Chờ ${config.batch_delay_seconds}s trước batch tiếp...`);
-                    await sleep(config.batch_delay_seconds * 1000);
+                if (batch.length === batchSize) {
+                    logger.info(`[ScheduledShutdown] Chờ ${batchDelaySeconds}s trước batch tiếp...`);
+                    await sleep(batchDelaySeconds * 1000);
                 }
             }
             
@@ -360,8 +392,8 @@ class ScheduledShutdownService {
             }
             
             // BƯỚC 3: Chờ x phút
-            logger.info(`[ScheduledShutdown] BƯỚC 3: Chờ ${config.shutdown_duration_minutes} phút trước khi bật lại...`);
-            await sleep(config.shutdown_duration_minutes * 60 * 1000);
+            logger.info(`[ScheduledShutdown] BƯỚC 3: Chờ ${shutdownDurationMinutes} phút trước khi bật lại...`);
+            await sleep(shutdownDurationMinutes * 60 * 1000);
             
             // BƯỚC 4: Bật lại tất cả trạm theo batch
             logger.info(`[ScheduledShutdown] BƯỚC 4: Bật lại trạm...`);
@@ -377,13 +409,12 @@ class ScheduledShutdownService {
                 }
                 
                 // Lấy batch trạm đang chờ bật (waiting_poweron)
-                const batchLimit = parseInt(config.batch_size) || 5;
                 const [batch] = await db.query(
                     `SELECT sl.station_id, s.ewelink_device_id as device_id 
                      FROM scheduled_shutdown_labels sl 
                      JOIN stations s ON sl.station_id = s.id 
                      WHERE sl.status IN ('waiting_poweron', 'powering_on') 
-                     LIMIT ${batchLimit}`
+                     LIMIT ${batchSize}`
                 );
                 
                 if (batch.length === 0) break;
@@ -392,9 +423,9 @@ class ScheduledShutdownService {
                 const results = await this.poweronBatch(batch);
                 
                 // Delay giữa các batch
-                if (batch.length === config.batch_size) {
-                    logger.info(`[ScheduledShutdown] Chờ ${config.batch_delay_seconds}s trước batch tiếp...`);
-                    await sleep(config.batch_delay_seconds * 1000);
+                if (batch.length === batchSize) {
+                    logger.info(`[ScheduledShutdown] Chờ ${batchDelaySeconds}s trước batch tiếp...`);
+                    await sleep(batchDelaySeconds * 1000);
                 }
             }
             
