@@ -5,6 +5,7 @@ const logger = require('./logger');
 // Ngưỡng thời gian cho các trạng thái khác nhau
 const OFFLINE_THRESHOLD = 30;        // Status 3 (Offline): 30 giây → Tạo Job ngay
 const LOST_DATA_THRESHOLD = 300;     // Status 2 (Lost Data): 5 phút → Tạo Job nếu không tự phục hồi
+const RECOVERY_MAX_CONCURRENT_JOBS = 3; // Giới hạn số job recovery chạy song song để tránh dồn API
 
 async function checkAndTriggerRecovery() {
     const now = new Date();
@@ -78,15 +79,42 @@ async function checkAndTriggerRecovery() {
             );
         }
         
-        // ===== BƯỚC 3: CHẠY CÁC JOB ĐANG PENDING =====
-        const [jobsToRun] = await db.query(`
-            SELECT * FROM station_recovery_jobs 
-            WHERE status = 'PENDING' AND next_run_time <= NOW()
+        // ===== BƯỚC 3: CHẠY CÁC JOB ĐANG PENDING (CÓ GIỚI HẠN ĐỒNG THỜI) =====
+        const [activeJobs] = await db.query(`
+            SELECT COUNT(*) as total
+            FROM station_recovery_jobs
+            WHERE status IN ('RUNNING', 'CHECKING')
         `);
-        
+
+        const runningCount = activeJobs[0]?.total || 0;
+        const availableSlots = Math.max(0, RECOVERY_MAX_CONCURRENT_JOBS - runningCount);
+
+        if (availableSlots <= 0) {
+            return;
+        }
+
+        const [jobsToRun] = await db.query(`
+            SELECT * FROM station_recovery_jobs
+            WHERE status = 'PENDING' AND next_run_time <= NOW()
+            ORDER BY next_run_time ASC
+            LIMIT ${availableSlots}
+        `);
+
         for (const job of jobsToRun) {
-            // Chạy bất đồng bộ để không block scheduler
-            runAutoRecovery(job);
+            // Claim job trước khi chạy để tránh scheduler kế tiếp lấy trùng
+            const [claimResult] = await db.execute(
+                'UPDATE station_recovery_jobs SET status = "RUNNING" WHERE id = ? AND status = "PENDING"',
+                [job.id]
+            );
+
+            if (claimResult.affectedRows === 0) {
+                continue;
+            }
+
+            // Chạy bất đồng bộ để không block scheduler vòng 5s
+            runAutoRecovery(job).catch((err) => {
+                logger.error(`[Monitor] Lỗi chạy job recovery ${job.id}: ${err.message}`);
+            });
         }
         
     } catch (error) {
