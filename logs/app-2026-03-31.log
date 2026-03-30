@@ -1,0 +1,12 @@
+[00:55:14 31/03/2026] info: [eWelink] ✓ Đã load cấu hình từ database
+[00:55:14 31/03/2026] info: [eWelink] API URL: https://as-apia.coolkit.cc
+[00:55:14 31/03/2026] info: 🚀 Scheduler: 5s (Satellite & Recovery) | 1h (Station List) | 30s (Scheduled Shutdown) | 7 days (eWeLink Token).
+[00:55:14 31/03/2026] info: --- ĐỒNG BỘ KHỞI TẠO HỆ THỐNG ---
+[00:55:14 31/03/2026] info: ✅ CGBAS: Đồng bộ thành công.
+[00:55:14 31/03/2026] info: -------------------------------------------------------
+[00:55:14 31/03/2026] info: 🚀 HỆ THỐNG PHỤC HỒI TRẠM ĐANG CHẠY: http://localhost:3001
+[00:55:14 31/03/2026] info: -------------------------------------------------------
+[00:55:14 31/03/2026] info: [eWelink] Quét thiết bị khởi tạo...
+[00:55:15 31/03/2026] info: [00:55:15] 📡 Đồng bộ vệ tinh & Kiểm tra phục hồi...
+[00:55:15 31/03/2026] info: [eWelink] Đã ánh xạ 75 thiết bị.
+[00:55:15 31/03/2026] info: ✅ eWelink: Quét khởi tạo hoàn tất.

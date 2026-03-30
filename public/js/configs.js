@@ -337,12 +337,8 @@ async function loadEwelinkLoginStatus() {
                 
                 if (isTokenExpired) {
                     loginStatusDiv.innerHTML = '<span class="badge badge-warning"><i class="fas fa-exclamation-triangle"></i> Token đã hết hạn</span>';
-                    btnLogin.style.display = 'inline-block';
-                    btnRefresh.style.display = 'none';
                 } else {
                     loginStatusDiv.innerHTML = '<span class="badge badge-success"><i class="fas fa-check"></i> Đã đăng nhập</span>';
-                    btnLogin.style.display = 'none';
-                    btnRefresh.style.display = 'inline-block';
                 }
                 
                 if (result.data.tokenExpiry) {
@@ -350,9 +346,10 @@ async function loadEwelinkLoginStatus() {
                 }
             } else {
                 loginStatusDiv.innerHTML = '<span class="badge badge-secondary"><i class="fas fa-times"></i> Chưa đăng nhập</span>';
-                btnLogin.style.display = 'inline-block';
-                btnRefresh.style.display = 'none';
             }
+            
+            btnLogin.style.display = 'inline-block';
+            btnRefresh.style.display = 'inline-block';
         }
     } catch (error) {
         console.error('[Configs] Error loading login status:', error);

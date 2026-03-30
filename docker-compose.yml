@@ -45,15 +45,9 @@ services:
       AK: ${AK}
       SK: ${SK}
       API_BASE_URL: ${API_BASE_URL}
-      EWELINK_APPID: ${EWELINK_APPID}
-      EWELINK_APPSECRET: ${EWELINK_APPSECRET}
-      EWELINK_TOKEN: ${EWELINK_TOKEN}
-      EWELINK_REFRESHTOKEN: ${EWELINK_REFRESHTOKEN}
-      EWELINK_API: ${EWELINK_API}
     volumes:
       - .:/app
       - /app/node_modules
-      - logs_data:/app/src/logs
     depends_on:
       mysql:
         condition: service_healthy
@@ -83,13 +77,8 @@ services:
       AK: ${AK}
       SK: ${SK}
       API_BASE_URL: ${API_BASE_URL}
-      EWELINK_APPID: ${EWELINK_APPID}
-      EWELINK_APPSECRET: ${EWELINK_APPSECRET}
-      EWELINK_TOKEN: ${EWELINK_TOKEN}
-      EWELINK_REFRESHTOKEN: ${EWELINK_REFRESHTOKEN}
-      EWELINK_API: ${EWELINK_API}
     volumes:
-      - logs_data:/app/src/logs
+      - ./logs:/app/src/logs
     depends_on:
       mysql:
         condition: service_healthy
@@ -112,6 +101,4 @@ networks:
 
 volumes:
   mysql_data:
-    driver: local
-  logs_data:
     driver: local
