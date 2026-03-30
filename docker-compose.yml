@@ -77,8 +77,6 @@ services:
       AK: ${AK}
       SK: ${SK}
       API_BASE_URL: ${API_BASE_URL}
-    volumes:
-      - ./logs:/app/src/logs
     depends_on:
       mysql:
         condition: service_healthy

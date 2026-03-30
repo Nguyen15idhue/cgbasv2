@@ -1,6 +1,13 @@
 const winston = require('winston');
 const DailyRotateFile = require('winston-daily-rotate-file');
 const path = require('path');
+const fs = require('fs');
+
+const logsDir = path.join(__dirname, '../logs');
+
+if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
+}
 
 // Custom timestamp format với timezone GMT+7
 const vietnamTimestamp = () => {
@@ -30,21 +37,23 @@ const logFormat = winston.format.combine(
 
 // Cấu hình transport cho file log theo ngày
 const dailyRotateFileTransport = new DailyRotateFile({
-    filename: path.join(__dirname, '../logs/app-%DATE%.log'),
+    filename: path.join(logsDir, 'app-%DATE%.log'),
     datePattern: 'YYYY-MM-DD',
     maxSize: '20m',
     maxFiles: '30d',
-    format: logFormat
+    format: logFormat,
+    handleExceptions: true
 });
 
 // Cấu hình transport cho error logs riêng
 const errorRotateFileTransport = new DailyRotateFile({
-    filename: path.join(__dirname, '../logs/error-%DATE%.log'),
+    filename: path.join(logsDir, 'error-%DATE%.log'),
     datePattern: 'YYYY-MM-DD',
     level: 'error',
     maxSize: '20m',
     maxFiles: '30d',
-    format: logFormat
+    format: logFormat,
+    handleExceptions: true
 });
 
 // Tạo logger instance
