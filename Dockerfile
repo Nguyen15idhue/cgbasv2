@@ -68,11 +68,11 @@ COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
 # Copy source code
 COPY --chown=nodejs:nodejs . .
 
-# Create logs directory with proper permissions
-RUN mkdir -p /app/src/logs && chown -R nodejs:nodejs /app/src/logs
-
 # Switch to non-root user
 USER nodejs
+
+# Create logs directory as nodejs user
+RUN mkdir -p /app/src/logs
 
 # Expose port
 EXPOSE 3001
