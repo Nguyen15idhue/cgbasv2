@@ -1,4 +1,5 @@
 const axios = require('axios');
+const CryptoJS = require('crypto-js');
 const logger = require('../utils/logger');
 const db = require('../config/database');
 require('dotenv').config();
@@ -140,39 +141,58 @@ ewelinkApi.interceptors.response.use(
  */
 async function refreshAccessToken() {
     try {
+        // Đảm bảo config đã được load
+        if (!currentConfig) {
+            await loadConfigFromDB();
+        }
+        
+        if (!currentConfig.refreshToken) {
+            throw new Error('Không có refresh token');
+        }
+        
         logger.info('[eWelink] Token hết hạn, đang làm mới...');
         
-        const response = await axios.post(`${process.env.EWELINK_API}/v2/user/refresh`, {
-            rt: currentRefreshToken
+        const apiUrl = currentConfig.apiUrl || process.env.EWELINK_API || 'https://as-apia.coolkit.cc';
+        const appId = currentConfig.appId || process.env.EWELINK_APPID;
+        
+        logger.info('[eWelink] Refresh - accessToken: ' + (currentConfig.accessToken ? 'exists' : 'empty'));
+        logger.info('[eWelink] Refresh - refreshToken: ' + (currentConfig.refreshToken ? 'exists' : 'empty'));
+        
+        const response = await axios.post(`${apiUrl}/v2/user/refresh`, {
+            rt: currentConfig.refreshToken
         }, {
             headers: {
                 'Content-Type': 'application/json',
-                'X-CK-Appid': process.env.EWELINK_APPID
+                'X-CK-Appid': appId
             }
         });
         
         if (response.data.error === 0 && response.data.data) {
             const { at, rt } = response.data.data;
             
-            // Cập nhật token mới
-            currentAccessToken = at;
-            currentRefreshToken = rt;
+            // Cập nhật token mới vào memory
+            currentConfig.accessToken = at;
+            currentConfig.refreshToken = rt;
             
             logger.info('[eWelink] ✅ Làm mới token thành công!');
-            logger.warn('[eWelink] ⚠️  Vui lòng cập nhật .env với token mới:');
-            logger.warn(`EWELINK_TOKEN=${at}`);
-            logger.warn(`EWELINK_REFRESHTOKEN=${rt}`);
             
-            // Lưu vào database để tracking (optional)
+            // Lưu vào database
             try {
-                await db.execute(
-                    `INSERT INTO ewelink_api_logs (method, endpoint, payload, response_code, response_body, duration_ms) 
-                     VALUES (?, ?, ?, ?, ?, ?)`,
-                    ['POST', '/v2/user/refresh', 'token_refresh', 200, 
-                     JSON.stringify({ message: 'Token refreshed successfully' }), 0]
-                );
+                const [rows] = await db.execute('SELECT id FROM ewelink_config LIMIT 1');
+                if (rows.length > 0) {
+                    const atExpiredTime = Date.now() + (30 * 24 * 60 * 60 * 1000);
+                    const rtExpiredTime = Date.now() + (365 * 24 * 60 * 60 * 1000);
+                    
+                    await db.execute(
+                        `UPDATE ewelink_config 
+                        SET access_token = ?, refresh_token = ?, token_expiry = FROM_UNIXTIME(?/1000), refresh_token_expiry = FROM_UNIXTIME(?/1000), updated_at = NOW()
+                        WHERE id = ?`,
+                        [at, rt, atExpiredTime, rtExpiredTime, rows[0].id]
+                    );
+                    logger.info('[eWelink] ✅ Token đã lưu vào database');
+                }
             } catch (dbErr) {
-                // Ignore DB error
+                logger.error('[eWelink] Lỗi lưu token vào DB: ' + dbErr.message);
             }
             
             return { at, rt };
@@ -183,7 +203,6 @@ async function refreshAccessToken() {
     } catch (error) {
         logger.error('[eWelink] ❌ Lỗi refresh token: ' + error.message);
         logger.error('[eWelink] Token và Refresh Token hiện tại có thể đã hết hạn hoàn toàn.');
-        logger.error('[eWelink] Vui lòng lấy token mới từ eWelink app và cập nhật vào .env');
         throw error;
     }
 }

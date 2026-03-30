@@ -4,6 +4,7 @@ const { fetchStations, fetchDynamicInfo } = require('../services/cgbasApi');
 const { upsertStations, upsertDynamicInfo, getAllStationIds } = require('../repository/stationRepo');
 const { checkAndTriggerRecovery } = require('./autoMonitor'); // Import bộ giám sát mới
 const scheduledShutdownService = require('../services/scheduledShutdownService'); // Import scheduled shutdown
+const ewelinkOAuthService = require('../services/ewelinkOAuthService'); // Import OAuth service
 
 let isSyncing = false;
 
@@ -73,7 +74,23 @@ function initCronJobs() {
         }
     });
 
-    logger.info('🚀 Scheduler: 5s (Satellite & Recovery) | 1h (Station List) | 30s (Scheduled Shutdown Check).');
+    // Tác vụ 4: Refresh eWeLink token mỗi 7 ngày (chạy vào 0h chủ nhật)
+    cron.schedule('0 0 * * 0', async () => {
+        try {
+            logger.info('[Scheduler] 🔄 Bắt đầu refresh eWeLink token (7 ngày/lần)...');
+            const result = await ewelinkOAuthService.autoRefreshToken();
+            
+            if (result.success) {
+                logger.info('[Scheduler] ✅ Refresh eWeLink token thành công');
+            } else {
+                logger.warn('[Scheduler] ⚠️ Refresh eWeLink token thất bại: ' + result.reason);
+            }
+        } catch (e) {
+            logger.error('[Scheduler] Lỗi refresh eWeLink token: ' + e.message);
+        }
+    });
+
+    logger.info('🚀 Scheduler: 5s (Satellite & Recovery) | 1h (Station List) | 30s (Scheduled Shutdown) | 7 days (eWeLink Token).');
 }
 
 module.exports = { initCronJobs };

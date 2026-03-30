@@ -12,6 +12,13 @@ document.getElementById('changePasswordForm').addEventListener('submit', handleC
 document.getElementById('updateEwelinkForm').addEventListener('submit', handleUpdateEwelink);
 document.getElementById('btnTestToken').addEventListener('click', handleTestToken);
 
+// OAuth Event Listeners
+document.getElementById('btnEwelinkLogin').addEventListener('click', handleEwelinkLogin);
+document.getElementById('btnRefreshToken').addEventListener('click', handleRefreshToken);
+
+// Load OAuth status on startup
+loadEwelinkLoginStatus();
+
 // Scheduled Shutdown Event Listeners
 document.getElementById('updateShutdownForm').addEventListener('submit', handleUpdateScheduledShutdown);
 document.getElementById('btnTestShutdown').addEventListener('click', handleTestShutdown);
@@ -306,6 +313,116 @@ function getAlertIcon(type) {
         'info': 'info-circle'
     };
     return icons[type] || 'info-circle';
+}
+
+// ==================== OAUTH FUNCTIONS ====================
+
+/**
+ * Load eWeLink login status
+ */
+async function loadEwelinkLoginStatus() {
+    try {
+        const response = await fetch('/api/ewelink/login-status');
+        const result = await response.json();
+        
+        const loginStatusDiv = document.getElementById('loginStatus');
+        const btnLogin = document.getElementById('btnEwelinkLogin');
+        const btnRefresh = document.getElementById('btnRefreshToken');
+        
+        if (result.success && result.data) {
+            if (result.data.isLoggedIn) {
+                const now = new Date();
+                const tokenExpiry = result.data.tokenExpiry ? new Date(result.data.tokenExpiry) : null;
+                const isTokenExpired = tokenExpiry && tokenExpiry < now;
+                
+                if (isTokenExpired) {
+                    loginStatusDiv.innerHTML = '<span class="badge badge-warning"><i class="fas fa-exclamation-triangle"></i> Token đã hết hạn</span>';
+                    btnLogin.style.display = 'inline-block';
+                    btnRefresh.style.display = 'none';
+                } else {
+                    loginStatusDiv.innerHTML = '<span class="badge badge-success"><i class="fas fa-check"></i> Đã đăng nhập</span>';
+                    btnLogin.style.display = 'none';
+                    btnRefresh.style.display = 'inline-block';
+                }
+                
+                if (result.data.tokenExpiry) {
+                    loginStatusDiv.innerHTML += `<div style="margin-top: 5px; font-size: 12px;">Token hết hạn: ${formatDate(result.data.tokenExpiry)}</div>`;
+                }
+            } else {
+                loginStatusDiv.innerHTML = '<span class="badge badge-secondary"><i class="fas fa-times"></i> Chưa đăng nhập</span>';
+                btnLogin.style.display = 'inline-block';
+                btnRefresh.style.display = 'none';
+            }
+        }
+    } catch (error) {
+        console.error('[Configs] Error loading login status:', error);
+    }
+}
+
+/**
+ * Handle eWeLink OAuth Login
+ */
+async function handleEwelinkLogin() {
+    try {
+        const response = await fetch('/api/ewelink/auth-url');
+        const result = await response.json();
+        
+        if (result.success && result.data && result.data.loginUrl) {
+            // Open OAuth URL in new tab
+            window.open(result.data.loginUrl, '_blank');
+            showAlert('info', 'Vui lòng đăng nhập eWeLink trong tab mới. Sau khi đăng nhập thành công, bạn sẽ được chuyển về trang này.');
+            
+            // Check for OAuth result in URL params
+            setTimeout(() => {
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('oauth') === 'success') {
+                    showAlert('success', 'Đăng nhập eWeLink thành công!');
+                    loadEwelinkLoginStatus();
+                    loadEwelinkConfig();
+                    // Clear URL params
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                } else if (urlParams.get('oauth') === 'error') {
+                    showAlert('danger', 'Đăng nhập eWeLink thất bại!');
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            }, 3000);
+        } else {
+            showAlert('danger', result.message || 'Không thể lấy URL đăng nhập');
+        }
+    } catch (error) {
+        console.error('[Configs] Error during OAuth login:', error);
+        showAlert('danger', 'Lỗi kết nối server');
+    }
+}
+
+/**
+ * Handle refresh token manually
+ */
+async function handleRefreshToken() {
+    if (!confirm('Bạn có chắc muốn refresh token ngay bây giờ?')) {
+        return;
+    }
+    
+    try {
+        showAlert('info', 'Đang refresh token...');
+        
+        const response = await fetch('/api/ewelink/refresh-token', {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert('success', 'Refresh token thành công!');
+            loadEwelinkLoginStatus();
+            loadEwelinkConfig();
+        } else {
+            showAlert('danger', result.message || 'Refresh token thất bại');
+        }
+    } catch (error) {
+        console.error('[Configs] Error refreshing token:', error);
+        showAlert('danger', 'Lỗi kết nối server');
+    }
 }
 
 // ==================== SCHEDULED SHUTDOWN FUNCTIONS ====================

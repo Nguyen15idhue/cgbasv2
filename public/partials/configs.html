@@ -76,11 +76,26 @@
                     </div>
                 </div>
 
+                <!-- OAuth Login Section -->
+                <div class="oauth-section" id="oauthSection" style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 5px;">
+                    <h4><i class="fas fa-sign-in-alt"></i> Đăng Nhập eWeLink OAuth</h4>
+                    <p class="text-muted">Đăng nhập để lấy token tự động. Token sẽ tự động refresh mỗi 7 ngày.</p>
+                    <div class="login-status" id="loginStatus">
+                        <span class="badge badge-secondary">Đang kiểm tra...</span>
+                    </div>
+                    <button type="button" class="btn btn-success" id="btnEwelinkLogin" style="margin-top: 10px;">
+                        <i class="fas fa-sign-in-alt"></i> Đăng Nhập eWeLink
+                    </button>
+                    <button type="button" class="btn btn-info" id="btnRefreshToken" style="margin-top: 10px; display: none;">
+                        <i class="fas fa-sync-alt"></i> Refresh Token
+                    </button>
+                </div>
+
                 <hr>
 
                 <!-- Form cập nhật Config -->
                 <form id="updateEwelinkForm">
-                    <h4>Cập Nhật Cấu Hình eWeLink</h4>
+                    <h4>Cập Nhật Cấu Hình eWeLink (Thủ Công)</h4>
                     
                     <div class="row">
                         <div class="col-md-6">

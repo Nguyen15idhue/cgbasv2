@@ -1,7 +1,10 @@
 const express = require('express');
+const axios = require('axios');
 const router = express.Router();
 const db = require('../config/database');
+const logger = require('../utils/logger');
 const ewelinkService = require('../services/ewelinkService');
+const ewelinkOAuthService = require('../services/ewelinkOAuthService');
 const { turnOnStation, turnOffStation } = require('../services/stationControlService');
 
 // API: Lấy danh sách thiết bị eWelink từ DB (có pagination)
@@ -191,6 +194,165 @@ router.post('/refresh-token', async (req, res) => {
             message: 'Không thể làm mới token: ' + err.message,
             note: 'Token có thể đã hết hạn hoàn toàn. Vui lòng lấy token mới từ eWelink app.'
         });
+    }
+});
+
+// API: Lấy URL đăng nhập OAuth
+router.get('/auth-url', async (req, res) => {
+    try {
+        const config = await ewelinkOAuthService.getConfigFromDB();
+        
+        if (!config || !config.appId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Chưa cấu hình App ID. Vui lòng cấu hình trước.'
+            });
+        }
+        
+        const redirectUrl = `${req.protocol}://${req.get('host')}/redirectUrl`;
+        
+        const eWeLink = (await import('ewelink-api-next')).default;
+        
+        const client = new eWeLink.WebAPI({
+            appId: config.appId,
+            appSecret: config.appSecret,
+            region: 'as'
+        });
+        
+        const state = Math.random().toString(36).substring(2, 12);
+        
+        const loginUrl = client.oauth.createLoginUrl({
+            redirectUrl: redirectUrl,
+            grantType: 'authorization_code',
+            state: state
+        });
+        
+        logger.info('[OAuth] Login URL: ' + loginUrl);
+        
+        res.json({
+            success: true,
+            data: {
+                loginUrl: loginUrl,
+                note: 'Click URL này để đăng nhập eWeLink'
+            }
+        });
+    } catch (err) {
+        logger.error('[OAuth] Lỗi lấy auth URL: ' + err.message);
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// API: OAuth Callback - nhận code và exchange lấy token
+router.get('/callback', async (req, res) => {
+    try {
+        const { code, region } = req.query;
+        
+        if (!code) {
+            return res.status(400).json({
+                success: false,
+                message: 'Thiếu code từ OAuth'
+            });
+        }
+        
+        logger.info('[OAuth] Callback received: code=' + code + ', region=' + region);
+        
+        const config = await ewelinkOAuthService.getConfigFromDB();
+        
+        if (!config || !config.appId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Chưa cấu hình App ID'
+            });
+        }
+        
+        const redirectUrl = `${req.protocol}://${req.get('host')}/api/ewelink/callback`;
+        
+        const eWeLink = (await import('ewelink-api-next')).default;
+        
+        const client = new eWeLink.WebAPI({
+            appId: config.appId,
+            appSecret: config.appSecret,
+            region: region || 'as'
+        });
+        
+        const tokenResponse = await client.oauth.getToken({
+            region: region || 'as',
+            redirectUrl: redirectUrl,
+            code: code
+        });
+        
+        logger.info('[OAuth] Token response:', JSON.stringify(tokenResponse));
+        
+        if (tokenResponse.error !== 0) {
+            return res.status(400).json({
+                success: false,
+                message: tokenResponse.msg || 'Lỗi lấy token'
+            });
+        }
+        
+        const { accessToken, refreshToken, atExpiredTime, rtExpiredTime } = tokenResponse.data;
+        
+        await ewelinkOAuthService.saveTokensToDB(accessToken, refreshToken, atExpiredTime, rtExpiredTime);
+        
+        ewelinkService.updateTokens(accessToken, refreshToken);
+        
+        logger.info('[OAuth] Đăng nhập thành công, token đã lưu vào DB');
+        
+        res.redirect('/configs?oauth=success');
+    } catch (err) {
+        logger.error('[OAuth] Lỗi callback: ' + err.message);
+        res.redirect('/configs?oauth=error');
+    }
+});
+
+// API: Kiểm tra trạng thái đăng nhập
+router.get('/login-status', async (req, res) => {
+    try {
+        const config = await ewelinkOAuthService.getConfigFromDB();
+        
+        if (!config || !config.accessToken) {
+            return res.json({
+                success: true,
+                data: {
+                    isLoggedIn: false,
+                    message: 'Chưa đăng nhập eWeLink'
+                }
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: {
+                isLoggedIn: true,
+                tokenExpiry: config.tokenExpiry,
+                refreshTokenExpiry: config.refreshTokenExpiry,
+                note: 'Token sẽ tự động làm mới mỗi 7 ngày'
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// API: Refresh token thủ công
+router.post('/refresh-token', async (req, res) => {
+    try {
+        const result = await ewelinkOAuthService.autoRefreshToken();
+        
+        if (result.success) {
+            res.json({
+                success: true,
+                message: 'Refresh token thành công!'
+            });
+        } else {
+            res.status(400).json({
+                success: false,
+                message: result.reason || 'Refresh token thất bại'
+            });
+        }
+    } catch (err) {
+        logger.error('[OAuth] Lỗi refresh token: ' + err.message);
+        res.status(500).json({ success: false, message: err.message });
     }
 });
 

@@ -197,6 +197,61 @@ app.delete('/api/queue/jobs/:stationId', requireAuth, async (req, res) => {
     }
 });
 
+// OAuth Redirect URL - Public (không cần đăng nhập)
+app.get('/redirectUrl', async (req, res) => {
+    try {
+        const { code, region } = req.query;
+        
+        if (!code) {
+            return res.status(400).send('Thiếu code từ OAuth');
+        }
+        
+        logger.info('[OAuth] Redirect received: code=' + code + ', region=' + region);
+        
+        const config = require('./services/ewelinkOAuthService').getConfigFromDB();
+        const configData = await config;
+        
+        if (!configData || !configData.appId) {
+            return res.status(400).send('Chưa cấu hình App ID');
+        }
+        
+        const redirectUrl = `${req.protocol}://${req.get('host')}/redirectUrl`;
+        
+        const eWeLink = (await import('ewelink-api-next')).default;
+        
+        const client = new eWeLink.WebAPI({
+            appId: configData.appId,
+            appSecret: configData.appSecret,
+            region: region || 'as'
+        });
+        
+        const tokenResponse = await client.oauth.getToken({
+            region: region || 'as',
+            redirectUrl: redirectUrl,
+            code: code
+        });
+        
+        logger.info('[OAuth] Token response:', JSON.stringify(tokenResponse));
+        
+        if (tokenResponse.error !== 0) {
+            return res.status(400).send('Lỗi lấy token: ' + tokenResponse.msg);
+        }
+        
+        const { accessToken, refreshToken, atExpiredTime, rtExpiredTime } = tokenResponse.data;
+        
+        await require('./services/ewelinkOAuthService').saveTokensToDB(accessToken, refreshToken, atExpiredTime, rtExpiredTime);
+        
+        require('./services/ewelinkService').updateTokens(accessToken, refreshToken);
+        
+        logger.info('[OAuth] Đăng nhập thành công, token đã lưu vào DB');
+        
+        res.redirect('/configs?oauth=success');
+    } catch (err) {
+        logger.error('[OAuth] Lỗi redirect: ' + err.message);
+        res.redirect('/configs?oauth=error');
+    }
+});
+
 // PROTECTED API ROUTES (Cần đăng nhập)
 app.use('/api/stations', requireAuth, stationRoutes);
 app.use('/api/ewelink', requireAuth, ewelinkRoutes);
