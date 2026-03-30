@@ -152,23 +152,26 @@ async function refreshAccessToken() {
         
         logger.info('[eWelink] Token hết hạn, đang làm mới...');
         
-        const apiUrl = currentConfig.apiUrl || process.env.EWELINK_API || 'https://as-apia.coolkit.cc';
         const appId = currentConfig.appId || process.env.EWELINK_APPID;
+        const appSecret = currentConfig.appSecret || process.env.EWELINK_APPSECRET;
         
         logger.info('[eWelink] Refresh - accessToken: ' + (currentConfig.accessToken ? 'exists' : 'empty'));
         logger.info('[eWelink] Refresh - refreshToken: ' + (currentConfig.refreshToken ? 'exists' : 'empty'));
         
-        const response = await axios.post(`${apiUrl}/v2/user/refresh`, {
+        const eWeLink = (await import('ewelink-api-next')).default;
+        
+        const client = new eWeLink.WebAPI({
+            appId: appId,
+            appSecret: appSecret,
+            region: 'as',
+            at: currentConfig.accessToken,
             rt: currentConfig.refreshToken
-        }, {
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CK-Appid': appId
-            }
         });
         
-        if (response.data.error === 0 && response.data.data) {
-            const { at, rt } = response.data.data;
+        const response = await client.user.refreshToken({ rt: currentConfig.refreshToken });
+        
+        if (response.error === 0 && response.data) {
+            const { at, rt } = response.data;
             
             // Cập nhật token mới vào memory
             currentConfig.accessToken = at;
@@ -197,7 +200,7 @@ async function refreshAccessToken() {
             
             return { at, rt };
         } else {
-            throw new Error('Refresh token failed: ' + (response.data.msg || 'Unknown error'));
+            throw new Error('Refresh token failed: ' + (response.msg || 'Unknown error'));
         }
         
     } catch (error) {

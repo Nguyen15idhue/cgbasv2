@@ -84,26 +84,24 @@ async function getTokenFromCode(code, region, config) {
 
 async function refreshToken(config) {
     try {
-        const apiUrl = config.apiUrl || 'https://as-apia.coolkit.cc';
+        const eWeLink = (await import('ewelink-api-next')).default;
         
-        logger.info('[OAuth] Refresh - accessToken: ' + (config.accessToken ? 'exists' : 'empty'));
-        logger.info('[OAuth] Refresh - refreshToken: ' + (config.refreshToken ? 'exists' : 'empty'));
-        
-        const response = await axios.post(`${apiUrl}/v2/user/refresh`, {
+        const client = new eWeLink.WebAPI({
+            appId: config.appId,
+            appSecret: config.appSecret,
+            region: 'as',
+            at: config.accessToken,
             rt: config.refreshToken
-        }, {
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CK-Appid': config.appId
-            }
         });
         
-        if (response.data.error === 0 && response.data.data) {
-            const { at, rt } = response.data.data;
+        const response = await client.user.refreshToken({ rt: config.refreshToken });
+        
+        if (response.error === 0 && response.data) {
+            const { at, rt } = response.data;
             return { accessToken: at, refreshToken: rt };
         }
         
-        throw new Error(response.data.msg || 'Refresh token failed');
+        throw new Error(response.msg || 'Refresh token failed');
     } catch (error) {
         logger.error('[OAuth] Lỗi refresh token: ' + error.message);
         throw error;
