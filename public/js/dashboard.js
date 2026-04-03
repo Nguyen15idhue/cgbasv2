@@ -41,3 +41,63 @@ async function loadDashboardData() {
     }
 }
 
+// Load recent recovery history
+async function loadRecentActivities() {
+    try {
+        const response = await fetch('/api/stations/recovery-history/recent');
+        
+        if (!response.ok) {
+            throw new Error('Failed to load recent activities');
+        }
+
+        const result = await response.json();
+        const container = document.getElementById('recentActivities');
+        
+        if (!container) return;
+
+        if (!result.data || result.data.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-4 text-muted">
+                    <i class="fas fa-inbox fa-2x mb-3"></i>
+                    <p>Không có hoạt động gần đây</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '<ul class="list-group list-group-flush">';
+        
+        result.data.forEach(item => {
+            const statusClass = item.status === 'SUCCESS' ? 'success' : 
+                               item.status === 'FAILED' ? 'danger' : 'warning';
+            const statusText = item.status === 'SUCCESS' ? 'Thành công' : 
+                              item.status === 'FAILED' ? 'Thất bại' : 'Đang chờ';
+            const time = item.completed_at ? new Date(item.completed_at).toLocaleString('vi-VN') : 
+                        (item.started_at ? new Date(item.started_at).toLocaleString('vi-VN') : '-');
+            
+            html += `
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>${item.station_name || item.station_id}</strong>
+                        <br><small class="text-muted">${time}</small>
+                    </div>
+                    <span class="badge bg-${statusClass}">${statusText}</span>
+                </li>
+            `;
+        });
+        
+        html += '</ul>';
+        container.innerHTML = html;
+    } catch (error) {
+        console.error('Error loading recent activities:', error);
+        const container = document.getElementById('recentActivities');
+        if (container) {
+            container.innerHTML = `
+                <div class="text-center py-4 text-danger">
+                    <p>Lỗi tải dữ liệu</p>
+                </div>
+            `;
+        }
+    }
+}
+

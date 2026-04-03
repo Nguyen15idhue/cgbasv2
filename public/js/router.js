@@ -196,8 +196,10 @@ function initializePage(path) {
         case '/dashboard':
             if (typeof loadDashboardData === 'function') {
                 loadDashboardData();
-                // Auto refresh every 30 seconds
                 window.dashboardInterval = setInterval(loadDashboardData, 30000);
+            }
+            if (typeof loadRecentActivities === 'function') {
+                loadRecentActivities();
             }
             break;
         case '/stations':

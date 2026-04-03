@@ -521,4 +521,29 @@ router.get('/recovery-history', async (req, res) => {
     }
 });
 
+router.get('/recovery-history/recent', async (req, res) => {
+    try {
+        const [rows] = await db.query(`
+            SELECT 
+                h.id,
+                h.station_id,
+                h.status,
+                h.retry_count,
+                h.total_duration_minutes,
+                h.started_at,
+                h.completed_at,
+                s.stationName as station_name
+            FROM station_recovery_history h
+            LEFT JOIN stations s ON h.station_id = s.id
+            ORDER BY h.completed_at DESC
+            LIMIT 5
+        `);
+
+        res.json({ success: true, data: rows });
+    } catch (error) {
+        console.error('Error loading recent recovery history:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 module.exports = router;

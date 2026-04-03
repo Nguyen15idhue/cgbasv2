@@ -49,8 +49,8 @@ async function loadEwelinkConfig() {
             document.getElementById('currentRefreshToken').textContent = maskToken(data.refreshToken);
             
             // Display expiry dates
-            document.getElementById('tokenExpiry').textContent = formatDate(data.tokenExpiry);
-            document.getElementById('refreshTokenExpiry').textContent = formatDate(data.refreshTokenExpiry);
+            document.getElementById('tokenExpiry').innerHTML = formatDate(data.tokenExpiry);
+            document.getElementById('refreshTokenExpiry').innerHTML = formatDate(data.refreshTokenExpiry);
             
             // Pre-fill form with current values
             document.getElementById('newAppId').value = data.appId || '';
@@ -587,8 +587,8 @@ async function handleUpdateScheduledShutdown(e) {
         return;
     }
     
-    if (shutdownDuration < 1 || shutdownDuration > 60) {
-        showAlert('danger', 'Thời gian tắt phải từ 1-60 phút!');
+    if (shutdownDuration < 1 || shutdownDuration > 5) {
+        showAlert('danger', 'Thời gian tắt phải từ 1-5 phút!');
         return;
     }
     

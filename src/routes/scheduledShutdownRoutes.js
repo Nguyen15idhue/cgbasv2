@@ -50,10 +50,10 @@ router.put('/config', async (req, res) => {
         }
         
         // Validate numbers
-        if (shutdown_duration_minutes < 1 || shutdown_duration_minutes > 60) {
+        if (shutdown_duration_minutes < 1 || shutdown_duration_minutes > 5) {
             return res.status(400).json({
                 success: false,
-                message: 'Thời gian tắt phải từ 1-60 phút'
+                message: 'Thời gian tắt phải từ 1-5 phút'
             });
         }
         
