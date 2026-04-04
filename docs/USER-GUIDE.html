@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>H&#x1b0;&#x1edb;ng d&#x1eab;n s&#x1eed; d&#x1ee5;ng - H&#x1ec7; th&#x1ed1;ng CGBAS v2</title>
+            <style>
+/* From extension vscode.github */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.vscode-dark img[src$=\#gh-light-mode-only],
+.vscode-light img[src$=\#gh-dark-mode-only],
+.vscode-high-contrast:not(.vscode-high-contrast-light) img[src$=\#gh-light-mode-only],
+.vscode-high-contrast-light img[src$=\#gh-dark-mode-only] {
+	display: none;
+}
+
+</style>
+            
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+<style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        </style>
+        <style>
+.task-list-item {
+    list-style-type: none;
+}
+
+.task-list-item-checkbox {
+    margin-left: -20px;
+    vertical-align: middle;
+    pointer-events: none;
+}
+</style>
+<style>
+:root {
+  --color-note: #0969da;
+  --color-tip: #1a7f37;
+  --color-warning: #9a6700;
+  --color-severe: #bc4c00;
+  --color-caution: #d1242f;
+  --color-important: #8250df;
+}
+
+</style>
+<style>
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-note: #2f81f7;
+    --color-tip: #3fb950;
+    --color-warning: #d29922;
+    --color-severe: #db6d28;
+    --color-caution: #f85149;
+    --color-important: #a371f7;
+  }
+}
+
+</style>
+<style>
+.markdown-alert {
+  padding: 0.5rem 1rem;
+  margin-bottom: 16px;
+  color: inherit;
+  border-left: .25em solid #888;
+}
+
+.markdown-alert>:first-child {
+  margin-top: 0
+}
+
+.markdown-alert>:last-child {
+  margin-bottom: 0
+}
+
+.markdown-alert .markdown-alert-title {
+  display: flex;
+  font-weight: 500;
+  align-items: center;
+  line-height: 1
+}
+
+.markdown-alert .markdown-alert-title .octicon {
+  margin-right: 0.5rem;
+  display: inline-block;
+  overflow: visible !important;
+  vertical-align: text-bottom;
+  fill: currentColor;
+}
+
+.markdown-alert.markdown-alert-note {
+  border-left-color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-note .markdown-alert-title {
+  color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-important {
+  border-left-color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-important .markdown-alert-title {
+  color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-warning {
+  border-left-color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-warning .markdown-alert-title {
+  color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-tip {
+  border-left-color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-tip .markdown-alert-title {
+  color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-caution {
+  border-left-color: var(--color-caution);
+}
+
+.markdown-alert.markdown-alert-caution .markdown-alert-title {
+  color: var(--color-caution);
+}
+
+</style>
+        
+        </head>
+        <body class="vscode-body vscode-light">
+            <h1 id="hướng-dẫn-sử-dụng---hệ-thống-cgbas-v2">Hướng dẫn sử dụng - Hệ thống CGBAS v2</h1>
+<h2 id="1-giới-thiệu">1. Giới thiệu</h2>
+<p><strong>CGBAS v2</strong> là hệ thống giám sát và tự động phục hồi trạm RTK. Hệ thống giúp bạn:</p>
+<ul>
+<li>Theo dõi trạng thái hoạt động của các trạm RTK</li>
+<li>Tự động phục hồi trạm khi gặp sự cố</li>
+<li>Điều khiển bật/tắt trạm từ xa</li>
+<li>Lên lịch tắt/bật trạm tự động hàng ngày</li>
+<li>Xem báo cáo và lịch sử hoạt động</li>
+</ul>
+<hr>
+<h2 id="2-đăng-nhập-hệ-thống">2. Đăng nhập hệ thống</h2>
+<h3 id="bước-1-truy-cập-địa-chỉ">Bước 1: Truy cập địa chỉ</h3>
+<p>Mở trình duyệt và truy cập địa chỉ server, ví dụ: <code>http://localhost:3001</code></p>
+<h3 id="bước-2-nhập-thông-tin-đăng-nhập">Bước 2: Nhập thông tin đăng nhập</h3>
+<ul>
+<li><strong>Tên đăng nhập</strong>: Nhập username</li>
+<li><strong>Mật khẩu</strong>: Nhập mật khẩu</li>
+<li>Nhấn nút <strong>Đăng nhập</strong></li>
+</ul>
+<h3 id="bước-3-đăng-xuất">Bước 3: Đăng xuất</h3>
+<ul>
+<li>Click vào tên user ở góc trên bên phải</li>
+<li>Chọn <strong>Đăng xuất</strong></li>
+</ul>
+<blockquote>
+<p><strong>Lưu ý</strong>: Sau 24 giờ không hoạt động, hệ thống sẽ tự động đăng xuất.</p>
+</blockquote>
+<hr>
+<h2 id="3-các-trang-chức-năng">3. Các trang chức năng</h2>
+<h3 id="31-dashboard---trang-tổng-quan">3.1. Dashboard - Trang tổng quan</h3>
+<p><strong>Vị trí</strong>: Click vào menu <strong>Tổng quan</strong> hoặc trang chủ</p>
+<p><strong>Nội dung hiển thị</strong>:</p>
+<ul>
+<li><strong>Trạm Online</strong>: Số trạm đang hoạt động bình thường</li>
+<li><strong>Trạm Offline</strong>: Số trạm đang offline (mất kết nối)</li>
+<li><strong>Đang xử lý</strong>: Số job phục hồi đang chạy</li>
+<li><strong>Phục hồi hôm nay</strong>: Số trạm đã phục hồi thành công trong ngày</li>
+<li><strong>Hoạt động gần đây</strong>: Danh sách các lần phục hồi gần nhất</li>
+<li><strong>Trạng thái hệ thống</strong>: Hiển thị trạng thái API CGBAS, eWeLink, Scheduler, Database</li>
+</ul>
+<hr>
+<h3 id="32-trạm---danh-sách-trạm-cgbas">3.2. Trạm - Danh sách trạm CGBAS</h3>
+<p><strong>Vị trí</strong>: Click vào menu <strong>Trạm</strong></p>
+<p><strong>Chức năng</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Tính năng</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tìm kiếm</td>
+<td>Nhập tên trạm, mã trạm vào ô tìm kiếm</td>
+</tr>
+<tr>
+<td>Lọc trạng thái</td>
+<td>Chọn Online/Offline để lọc</td>
+</tr>
+<tr>
+<td>Phân trang</td>
+<td>Xem theo từng trang (mặc định 20 trạm/trang)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Bảng thông tin trạm</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Cột</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tên trạm</td>
+<td>Tên của trạm RTK</td>
+</tr>
+<tr>
+<td>Tên định danh</td>
+<td>Mã định danh trạm</td>
+</tr>
+<tr>
+<td>Trạng thái</td>
+<td>Online (xanh) / Offline (đỏ)</td>
+</tr>
+<tr>
+<td>Vệ tinh</td>
+<td>Số vệ tinh GPS/BeiDou/Galileo/GLONASS</td>
+</tr>
+<tr>
+<td>Độ trễ</td>
+<td>Độ trễ tính theo mili giây (ms)</td>
+</tr>
+<tr>
+<td>Device ID</td>
+<td>ID thiết bị eWeLink đang kết nối</td>
+</tr>
+<tr>
+<td>Thao tác</td>
+<td>Các nút điều khiển</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Thao tác với trạm</strong>:</p>
+<ul>
+<li><strong>Phục hồi</strong>: Thêm trạm vào hàng đợi phục hồi (nếu offline)</li>
+<li><strong>Gán eWeLink</strong>: Gán thiết bị eWeLink cho trạm</li>
+<li><strong>Xóa eWeLink</strong>: Bỏ gán thiết bị eWeLink</li>
+<li><strong>Bật/Tắt trạm</strong>: Kích hoạt hoặc vô hiệu hóa trạm</li>
+</ul>
+<hr>
+<h3 id="33-thiết-bị---danh-sách-thiết-bị-ewelink">3.3. Thiết bị - Danh sách thiết bị eWeLink</h3>
+<p><strong>Vị trí</strong>: Click vào menu <strong>Thiết bị</strong></p>
+<p><strong>Chức năng</strong>:</p>
+<ul>
+<li>Tìm kiếm thiết bị theo tên hoặc ID</li>
+<li>Phân trang danh sách</li>
+</ul>
+<p><strong>Bảng thông tin thiết bị</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Cột</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tên thiết bị</td>
+<td>Tên thiết bị trong eWeLink</td>
+</tr>
+<tr>
+<td>Device ID</td>
+<td>ID thiết bị trên eWeLink Cloud</td>
+</tr>
+<tr>
+<td>Kênh 1</td>
+<td>Trạng thái bật/tắt (on/off)</td>
+</tr>
+<tr>
+<td>Kênh 2</td>
+<td>Trạng thái bật/tắt (on/off)</td>
+</tr>
+<tr>
+<td>Điện áp</td>
+<td>Điện áp hiện tại (V)</td>
+</tr>
+<tr>
+<td>Cập nhật</td>
+<td>Thời gian cập nhật trạng thái cuối</td>
+</tr>
+<tr>
+<td>Thao tác</td>
+<td>Nút điều khiển</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Điều khiển thiết bị</strong>:</p>
+<ul>
+<li><strong>Bật Kênh 1</strong>: Bật relay nguồn (Power)</li>
+<li><strong>Tắt Kênh 1</strong>: Tắt relay nguồn</li>
+<li><strong>Bật Kênh 2</strong>: Bật relay reset (kích nút)</li>
+<li><strong>Tắt Kênh 2</strong>: Tắt relay reset</li>
+</ul>
+<hr>
+<h3 id="34-hàng-đợi---job-phục-hồi-đang-chạy">3.4. Hàng đợi - Job phục hồi đang chạy</h3>
+<p><strong>Vị trí</strong>: Click vào menu <strong>Hàng đợi</strong></p>
+<p><strong>Mục đích</strong>: Xem các job phục hồi đang chờ hoặc đang chạy</p>
+<p><strong>Bảng thông tin</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Cột</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tên trạm</td>
+<td>Tên trạm đang được phục hồi</td>
+</tr>
+<tr>
+<td>Thiết bị</td>
+<td>Tên thiết bị eWeLink</td>
+</tr>
+<tr>
+<td>Trạng thái</td>
+<td>PENDING / RUNNING / CHECKING</td>
+</tr>
+<tr>
+<td>Lần thử</td>
+<td>Số lần đã thử</td>
+</tr>
+<tr>
+<td>Thời gian chạy tiếp</td>
+<td>Thời gian dự kiến chạy lại</td>
+</tr>
+<tr>
+<td>Thao tác</td>
+<td>Xóa khỏi hàng đợi</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h3 id="35-lịch-sử---lịch-sử-phục-hồi">3.5. Lịch sử - Lịch sử phục hồi</h3>
+<p><strong>Vị trí</strong>: Click vào menu <strong>Lịch sử</strong></p>
+<p><strong>Chức năng</strong>:</p>
+<ul>
+<li>Xem lịch sử tất cả các lần phục hồi trạm</li>
+<li>Lọc theo trạng thái (SUCCESS / FAILED / SKIPPED)</li>
+<li>Phân trang</li>
+</ul>
+<p><strong>Thông tin hiển thị</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Cột</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tên trạm</td>
+<td>Trạm được phục hồi</td>
+</tr>
+<tr>
+<td>Trạng thái</td>
+<td>Thành công / Thất bại / Bỏ qua</td>
+</tr>
+<tr>
+<td>Số lần thử</td>
+<td>Tổng số lần thử</td>
+</tr>
+<tr>
+<td>Thời gian</td>
+<td>Thời gian bắt đầu và kết thúc</td>
+</tr>
+<tr>
+<td>Lý do</td>
+<td>Lý do thất bại (nếu có)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Thống kê</strong>:</p>
+<ul>
+<li>Tổng số lần phục hồi</li>
+<li>Số lần thành công / thất bại</li>
+<li>Thời gian trung bình phục hồi thành công</li>
+</ul>
+<hr>
+<h3 id="36-báo-cáo---thống-kê-api">3.6. Báo cáo - Thống kê API</h3>
+<p><strong>Vị trí</strong>: Click vào menu <strong>Báo cáo</strong></p>
+<p><strong>Chức năng</strong>:</p>
+<ul>
+<li>Xem thống kê số lần gọi API eWeLink</li>
+<li>Lọc theo ngày/tháng/năm</li>
+</ul>
+<p><strong>Thông tin hiển thị</strong>:</p>
+<ul>
+<li>Tổng số lần gọi API</li>
+<li>Số lần thành công / lỗi</li>
+<li>Thời gian phản hồi trung bình</li>
+<li>Top các endpoint được gọi nhiều nhất</li>
+<li>Thống kê theo thiết bị</li>
+</ul>
+<hr>
+<h3 id="37-logs---nhật-ký-hệ-thống">3.7. Logs - Nhật ký hệ thống</h3>
+<p><strong>Vị trí</strong>: Click vào menu <strong>Logs</strong></p>
+<p><strong>Mục đích</strong>: Xem chi tiết các lỗi xảy ra trong hệ thống</p>
+<hr>
+<h3 id="38-cấu-hình---settings">3.8. Cấu hình - Settings</h3>
+<p><strong>Vị trí</strong>: Click vào menu <strong>Cấu hình</strong></p>
+<h4 id="tab-ewelink">Tab eWeLink</h4>
+<ul>
+<li><strong>App ID</strong>: ID ứng dụng eWeLink</li>
+<li><strong>App Secret</strong>: Secret key của ứng dụng</li>
+<li><strong>API URL</strong>: Địa chỉ API eWeLink</li>
+<li><strong>Access Token</strong>: Token truy cập</li>
+<li><strong>Refresh Token</strong>: Token làm mới</li>
+<li><strong>Đăng nhập eWeLink</strong>: Kết nối qua OAuth (đăng nhập bằng tài khoản eWeLink)</li>
+<li><strong>Làm mới token</strong>: Refresh token thủ công</li>
+<li><strong>Test token</strong>: Kiểm tra token có hoạt động không</li>
+</ul>
+<h4 id="tab-scheduled-shutdown">Tab Scheduled Shutdown</h4>
+<ul>
+<li><strong>Bật/Tắt</strong>: Kích hoạt tính năng tắt/bật tự động</li>
+<li><strong>Giờ tắt</strong>: Thời điểm tắt trạm hàng ngày (VD: 02:00:00)</li>
+<li><strong>Thời gian tắt</strong>: Số phút trạm sẽ tắt (1-5 phút)</li>
+<li><strong>Số trạm/batch</strong>: Số trạm xử lý mỗi lần (tránh quá tải API)</li>
+<li><strong>Delay giữa các batch</strong>: Thời gian chờ giữa các batch (giây)</li>
+<li><strong>Thực thi</strong>: Chạy thủ công quy trình tắt/bật</li>
+<li><strong>Hủy</strong>: Hủy quy trình đang chạy</li>
+<li><strong>Xem trạng thái</strong>: Theo dõi tiến trình đang chạy</li>
+</ul>
+<h4 id="tab-đổi-mật-khẩu">Tab Đổi mật khẩu</h4>
+<ul>
+<li><strong>Mật khẩu hiện tại</strong>: Nhập mật khẩu hiện tại</li>
+<li><strong>Mật khẩu mới</strong>: Nhập mật khẩu mới</li>
+<li><strong>Xác nhận mật khẩu</strong>: Nhập lại mật khẩu mới</li>
+<li>Nhấn <strong>Đổi mật khẩu</strong> để lưu</li>
+</ul>
+<hr>
+<h2 id="4-quy-trình-phục-hồi-tự-động">4. Quy trình phục hồi tự động</h2>
+<h3 id="41-khi-nào-hệ-thống-tự-động-phục-hồi">4.1. Khi nào hệ thống tự động phục hồi?</h3>
+<p>Hệ thống sẽ tự động phục hồi trạm khi:</p>
+<ul>
+<li>Trạm <strong>Offline</strong> (Status 3) liên tục <strong>≥ 30 giây</strong></li>
+<li>Trạm <strong>Lost Data</strong> (Status 2) liên tục <strong>≥ 5 phút</strong></li>
+<li>Trạm đã được <strong>gán thiết bị eWeLink</strong></li>
+<li>Trạm đang ở trạng thái <strong>Active</strong> (không bị vô hiệu hóa)</li>
+</ul>
+<h3 id="42-các-bước-phục-hồi">4.2. Các bước phục hồi</h3>
+<ol>
+<li>
+<p><strong>Kiểm tra thiết bị eWeLink</strong></p>
+<ul>
+<li>Nếu thiết bị <strong>OFFLINE</strong> → Nguyên nhân mất điện, thử lại chậm (3, 3, 5, 10, 60, 120 phút)</li>
+<li>Nếu thiết bị <strong>ONLINE</strong> → Nguyên nhân lỗi phần mềm, thử lại nhanh (2, 2, 3, 5, 10, 20 phút)</li>
+</ul>
+</li>
+<li>
+<p><strong>Thực hiện kịch bản phục hồi</strong></p>
+<ul>
+<li>Bật Kênh 1 (nguồn) - Chờ 10 giây</li>
+<li>Bật Kênh 2 (kích điều khiển) - Chờ 5 giây</li>
+<li>Tắt Kênh 2</li>
+<li>Chờ 90 giây kiểm tra kết quả</li>
+</ul>
+</li>
+<li>
+<p><strong>Kết quả</strong></p>
+<ul>
+<li><strong>Thành công</strong>: Trạm online → Lưu lịch sử, xóa khỏi hàng đợi</li>
+<li><strong>Thất bại</strong>: Thử lại theo lịch retry tương ứng</li>
+<li><strong>Giới hạn</strong>: Sau 6 lần thử thất bại → Đánh dấu FAILED</li>
+</ul>
+</li>
+</ol>
+<h3 id="43-phân-biệt-nguyên-nhân">4.3. Phân biệt nguyên nhân</h3>
+<table>
+<thead>
+<tr>
+<th>Tình huống</th>
+<th>Nguyên nhân</th>
+<th>Hành động</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>eWeLink OFFLINE</td>
+<td>Mất điện</td>
+<td>Thử lại chậm</td>
+</tr>
+<tr>
+<td>eWeLink ONLINE, trạm offline</td>
+<td>Lỗi phần mềm/treo máy</td>
+<td>Thử lại nhanh</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="5-quy-trình-scheduled-shutdown">5. Quy trình Scheduled Shutdown</h2>
+<h3 id="51-hoạt-động-như-thế-nào">5.1. Hoạt động như thế nào?</h3>
+<ol>
+<li>
+<p><strong>Giờ tắt</strong>: Đến giờ cấu hình (VD: 2:00 AM), hệ thống sẽ:</p>
+<ul>
+<li>Tắt Kênh 1 của tất cả trạm đang active</li>
+<li>Xử lý theo batch để tránh quá tải API</li>
+</ul>
+</li>
+<li>
+<p><strong>Chờ</strong>: Sau thời gian cấu hình (VD: 3 phút)</p>
+</li>
+<li>
+<p><strong>Giờ bật</strong>: Hệ thống sẽ:</p>
+<ul>
+<li>Bật lại Kênh 1 của tất cả trạm</li>
+<li>Xử lý theo batch</li>
+</ul>
+</li>
+</ol>
+<h3 id="52-cấu-hình-khuyến-nghị">5.2. Cấu hình khuyến nghị</h3>
+<table>
+<thead>
+<tr>
+<th>Tham số</th>
+<th>Giá trị khuyến nghị</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Giờ tắt</td>
+<td>02:00:00</td>
+<td>Tắt vào 2h sáng</td>
+</tr>
+<tr>
+<td>Thời gian tắt</td>
+<td>3-5 phút</td>
+<td>Thời gian trạm tắt nguồn</td>
+</tr>
+<tr>
+<td>Số trạm/batch</td>
+<td>5</td>
+<td>Số trạm xử lý mỗi lần</td>
+</tr>
+<tr>
+<td>Delay</td>
+<td>10-15 giây</td>
+<td>Chờ giữa các batch</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="6-xử-lý-sự-cố">6. Xử lý sự cố</h2>
+<h3 id="61-trạm-không-phục-hồi">6.1. Trạm không phục hồi</h3>
+<ol>
+<li>Kiểm tra <strong>thiết bị eWeLink</strong> có online không</li>
+<li>Kiểm tra <strong>kết nối điện</strong> của trạm</li>
+<li>Kiểm tra <strong>token eWeLink</strong> còn hạn không (vào Cấu hình → eWeLink)</li>
+<li>Xem <strong>lịch sử phục hồi</strong> để biết lỗi chi tiết</li>
+</ol>
+<h3 id="62-token-ewelink-hết-hạn">6.2. Token eWeLink hết hạn</h3>
+<ol>
+<li>Vào <strong>Cấu hình</strong> → Tab <strong>eWeLink</strong></li>
+<li>Nhấn nút <strong>Đăng nhập eWeLink</strong> để xác thực lại</li>
+<li>Hoặc nhấn <strong>Làm mới token</strong> để refresh thủ công</li>
+</ol>
+<h3 id="63-scheduled-shutdown-không-chạy">6.3. Scheduled Shutdown không chạy</h3>
+<ol>
+<li>Kiểm tra <strong>cấu hình</strong>: Đã bật tính năng chưa?</li>
+<li>Kiểm tra <strong>giờ tắt</strong>: Cấu hình đúng định dạng HH:MM:SS?</li>
+<li>Kiểm tra <strong>Logs</strong> để xem lỗi</li>
+</ol>
+<hr>
+<h2 id="7-các-mã-trạng-thái">7. Các mã trạng thái</h2>
+<h3 id="trạng-thái-trạm-connectstatus">Trạng thái trạm (connectStatus)</h3>
+<table>
+<thead>
+<tr>
+<th>Mã</th>
+<th>Ý nghĩa</th>
+<th>Màu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>Chưa kết nối</td>
+<td>Xám</td>
+</tr>
+<tr>
+<td>1</td>
+<td>Online</td>
+<td>Xanh</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Chưa định vị</td>
+<td>Vàng</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Offline</td>
+<td>Đỏ</td>
+</tr>
+</tbody>
+</table>
+<h3 id="trạng-thái-job-phục-hồi">Trạng thái Job phục hồi</h3>
+<table>
+<thead>
+<tr>
+<th>Trạng thái</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PENDING</td>
+<td>Đang chờ</td>
+</tr>
+<tr>
+<td>RUNNING</td>
+<td>Đang chạy</td>
+</tr>
+<tr>
+<td>CHECKING</td>
+<td>Đang kiểm tra kết quả</td>
+</tr>
+<tr>
+<td>SUCCESS</td>
+<td>Phục hồi thành công</td>
+</tr>
+<tr>
+<td>FAILED</td>
+<td>Phục hồi thất bại</td>
+</tr>
+<tr>
+<td>SKIPPED</td>
+<td>Bỏ qua (do đang scheduled shutdown)</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="8-liên-hệ-hỗ-trợ">8. Liên hệ hỗ trợ</h2>
+<p>Nếu gặp vấn đề không thể giải quyết:</p>
+<ul>
+<li>Xem logs tại trang <strong>Logs</strong></li>
+<li>Kiểm tra thông tin tại <strong>Cấu hình</strong></li>
+<li>Liên hệ quản trị viên hệ thống</li>
+</ul>
+<hr>
+<p><em>Hướng dẫn sử dụng - CGBAS v2</em></p>
+
+            
+            
+        </body>
+        </html>

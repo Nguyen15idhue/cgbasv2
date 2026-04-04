@@ -9,6 +9,7 @@ const routes = {
     '/queue': '/partials/queue.html',
     '/stations': '/partials/stations.html',
     '/devices': '/partials/devices.html',
+    '/help': '/partials/help.html',
     '/history': '/partials/history.html',
     '/reports': '/partials/reports.html',
     '/logs': '/partials/logs.html',
@@ -73,6 +74,11 @@ const pageConfig = {
         title: 'Thiết bị eWelink',
         css: '/css/devices.css',
         js: '/js/devices.js'
+    },
+    '/help': {
+        title: 'Hướng dẫn sử dụng',
+        css: '',
+        js: ''
     },
     '/history': {
         title: 'Lịch sử phục hồi',
@@ -228,6 +234,9 @@ function initializePage(path) {
                 // Auto refresh every 30 seconds
                 window.devicesInterval = setInterval(loadDevicesData, 30000);
             }
+            break;
+        case '/help':
+            // Help page is static, no JS needed
             break;
         case '/logs':
             // Initialize pagination first

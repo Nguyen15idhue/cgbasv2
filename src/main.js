@@ -121,6 +121,10 @@ app.get('/devices', requireAuth, (req, res) => {
     res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
+app.get('/help', requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/index.html'));
+});
+
 app.get('/logs', requireAuth, (req, res) => {
     res.sendFile(path.join(__dirname, '../public/index.html'));
 });

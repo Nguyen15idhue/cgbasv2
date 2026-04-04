@@ -1,0 +1,609 @@
+<div class="page-header">
+    <h1><i class="fas fa-question-circle"></i> Hướng dẫn sử dụng</h1>
+    <p>Hướng dẫn chi tiết cách sử dụng hệ thống CGBAS v2</p>
+</div>
+
+<style>
+.help-accordion {
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.help-accordion details {
+    border-bottom: 1px solid #e0e0e0;
+    background: #fff;
+}
+
+.help-accordion details:last-child {
+    border-bottom: none;
+}
+
+.help-accordion summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    cursor: pointer;
+    background: #f8f9fa;
+    transition: all 0.2s ease;
+    list-style: none;
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.help-accordion summary::-webkit-details-marker {
+    display: none;
+}
+
+.help-accordion summary:hover {
+    background: #e9ecef;
+}
+
+.help-accordion details[open] summary {
+    background: #0d6efd;
+    color: white;
+}
+
+.help-accordion details[open] summary .help-title i.fas {
+    color: white !important;
+}
+
+.help-accordion details[open] summary .help-icon {
+    transform: rotate(180deg);
+}
+
+.help-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.help-title i.fas {
+    font-size: 18px;
+    color: #0d6efd;
+    width: 24px;
+    text-align: center;
+}
+
+.help-icon {
+    font-size: 12px;
+    transition: transform 0.2s ease;
+    color: #6c757d;
+}
+
+.help-content {
+    padding: 0;
+    background: white;
+}
+
+.help-content-inner {
+    padding: 20px;
+}
+
+.help-content-inner h6 {
+    color: #0d6efd;
+    font-weight: 600;
+    margin-top: 18px;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.help-content-inner h6:first-child {
+    margin-top: 0;
+}
+
+.help-content-inner ul {
+    padding-left: 20px;
+    margin-bottom: 12px;
+}
+
+.help-content-inner li {
+    margin-bottom: 6px;
+    color: #495057;
+    font-size: 14px;
+}
+
+.help-content-inner p {
+    color: #495057;
+    margin-bottom: 12px;
+    font-size: 14px;
+}
+
+.help-content-inner ol {
+    padding-left: 20px;
+}
+
+.help-content-inner ol li {
+    margin-bottom: 8px;
+}
+
+.help-content-inner code {
+    background: #f1f3f4;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #d63384;
+}
+
+.alert-help {
+    background: #e7f3ff;
+    border: none;
+    border-left: 4px solid #0d6efd;
+    border-radius: 4px;
+    padding: 12px 16px;
+    font-size: 14px;
+}
+
+.help-content-inner table {
+    margin: 12px 0;
+    font-size: 13px;
+}
+
+.help-content-inner .card {
+    background: #f8f9fa;
+    border: none;
+    border-radius: 8px;
+}
+
+.help-content-inner .badge {
+    font-size: 11px;
+    padding: 4px 8px;
+}
+
+.timeline-step {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.timeline-number {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+.timeline-content {
+    margin-left: 12px;
+}
+
+.timeline-content strong {
+    font-size: 14px;
+}
+
+.timeline-content p {
+    margin: 0;
+    font-size: 13px;
+    color: #6c757d;
+}
+</style>
+
+<div class="help-accordion">
+    <!-- Section 1: Giới thiệu -->
+    <details>
+        <summary>
+            <div class="help-title">
+                <i class="fas fa-info-circle"></i>
+                1. Giới thiệu hệ thống
+            </div>
+            <i class="fas fa-chevron-down help-icon"></i>
+        </summary>
+        <div class="help-content">
+            <div class="help-content-inner">
+                <p><strong>CGBAS v2</strong> là hệ thống giám sát và tự động phục hồi trạm RTK. Hệ thống giúp bạn:</p>
+                <ul>
+                    <li>Theo dõi trạng thái hoạt động của các trạm RTK</li>
+                    <li>Tự động phục hồi trạm khi gặp sự cố</li>
+                    <li>Điều khiển bật/tắt trạm từ xa</li>
+                    <li>Lên lịch tắt/bật trạm tự động hàng ngày</li>
+                    <li>Xem báo cáo và lịch sử hoạt động</li>
+                </ul>
+            </div>
+        </div>
+    </details>
+
+    <!-- Section 2: Đăng nhập -->
+    <details>
+        <summary>
+            <div class="help-title">
+                <i class="fas fa-sign-in-alt"></i>
+                2. Đăng nhập hệ thống
+            </div>
+            <i class="fas fa-chevron-down help-icon"></i>
+        </summary>
+        <div class="help-content">
+            <div class="help-content-inner">
+                <h6>Bước 1: Truy cập địa chỉ</h6>
+                <p>Mở trình duyệt và truy cập địa chỉ server, ví dụ: <code>http://localhost:3001</code></p>
+                
+                <h6>Bước 2: Nhập thông tin đăng nhập</h6>
+                <ul>
+                    <li><strong>Tên đăng nhập</strong>: Nhập username</li>
+                    <li><strong>Mật khẩu</strong>: Nhập mật khẩu</li>
+                    <li>Nhấn nút <strong>Đăng nhập</strong></li>
+                </ul>
+                
+                <h6>Bước 3: Đăng xuất</h6>
+                <ul>
+                    <li>Click vào tên user ở góc trên bên phải</li>
+                    <li>Chọn <strong>Đăng xuất</strong></li>
+                </ul>
+                
+                <div class="alert alert-help mt-3">
+                    <i class="fas fa-info-circle"></i> <strong>Lưu ý:</strong> Sau 24 giờ không hoạt động, hệ thống sẽ tự động đăng xuất.
+                </div>
+            </div>
+        </div>
+    </details>
+
+    <!-- Section 3: Các trang chức năng -->
+    <details>
+        <summary>
+            <div class="help-title">
+                <i class="fas fa-th-large"></i>
+                3. Các trang chức năng
+            </div>
+            <i class="fas fa-chevron-down help-icon"></i>
+        </summary>
+        <div class="help-content">
+            <div class="help-content-inner">
+                <h6>3.1. Dashboard - Trang tổng quan</h6>
+                <p><strong>Vị trí:</strong> Click vào menu <strong>Tổng quan</strong> hoặc trang chủ</p>
+                <ul>
+                    <li><strong>Trạm Online</strong>: Số trạm đang hoạt động</li>
+                    <li><strong>Trạm Offline</strong>: Số trạm mất kết nối</li>
+                    <li><strong>Đang xử lý</strong>: Số job phục hồi đang chạy</li>
+                    <li><strong>Phục hồi hôm nay</strong>: Số trạm phục hồi thành công trong ngày</li>
+                </ul>
+
+                <h6>3.2. Trạm - Danh sách trạm CGBAS</h6>
+                <ul>
+                    <li><strong>Tìm kiếm:</strong> Nhập tên trạm, mã trạm</li>
+                    <li><strong>Lọc trạng thái:</strong> Chọn Online/Offline</li>
+                    <li><strong>Phân trang:</strong> 20 trạm/trang</li>
+                </ul>
+                <p><strong>Thao tác:</strong></p>
+                <ul>
+                    <li><i class="fas fa-play text-success"></i> Phục hồi - Thêm trạm vào hàng đợi</li>
+                    <li><i class="fas fa-link text-primary"></i> Gán eWeLink - Gán thiết bị cho trạm</li>
+                    <li><i class="fas fa-unlink text-warning"></i> Xóa eWeLink - Bỏ gán thiết bị</li>
+                    <li><i class="fas fa-toggle-on text-info"></i> Bật/Tắt trạm - Kích hoạt/vô hiệu hóa</li>
+                </ul>
+
+                <h6>3.3. Thiết bị - Danh sách eWeLink</h6>
+                <ul>
+                    <li>Tìm kiếm theo tên hoặc ID</li>
+                    <li>Điều khiển: Bật/Tắt Kênh 1 (nguồn), Bật/Tắt Kênh 2 (reset)</li>
+                </ul>
+
+                <h6>3.4. Hàng đợi - Job phục hồi</h6>
+                <p>Xem các job đang chờ/đang chạy: PENDING / RUNNING / CHECKING</p>
+
+                <h6>3.5. Lịch sử - Lịch sử phục hồi</h6>
+                <p>Lọc theo: SUCCESS / FAILED / SKIPPED</p>
+
+                <h6>3.6. Báo cáo - Thống kê API</h6>
+                <p>Xem thống kê: Tổng gọi, thành công/lỗi, thời gian phản hồi trung bình</p>
+
+                <h6>3.7. Logs - Nhật ký hệ thống</h6>
+                <p>Xem chi tiết các lỗi</p>
+
+                <h6>3.8. Cấu hình - Settings</h6>
+                <p>3 tabs:</p>
+                <ul>
+                    <li><strong>eWeLink:</strong> Cấu hình app, token, OAuth</li>
+                    <li><strong>Scheduled Shutdown:</strong> Lịch tắt/bật tự động</li>
+                    <li><strong>Đổi mật khẩu:</strong> Thay đổi mật khẩu</li>
+                </ul>
+            </div>
+        </div>
+    </details>
+
+    <!-- Section 4: Quy trình phục hồi tự động -->
+    <details>
+        <summary>
+            <div class="help-title">
+                <i class="fas fa-tools"></i>
+                4. Quy trình phục hồi tự động
+            </div>
+            <i class="fas fa-chevron-down help-icon"></i>
+        </summary>
+        <div class="help-content">
+            <div class="help-content-inner">
+                <h6>4.1. Khi nào hệ thống tự động phục hồi?</h6>
+                <ul>
+                    <li>Trạm <strong>Offline</strong> (Status 3) liên tục <strong>≥ 30 giây</strong></li>
+                    <li>Trạm <strong>Lost Data</strong> (Status 2) liên tục <strong>≥ 5 phút</strong></li>
+                    <li>Trạm đã được <strong>gán thiết bị eWeLink</strong></li>
+                    <li>Trạm đang ở trạng thái <strong>Active</strong></li>
+                </ul>
+
+                <h6>4.2. Các bước phục hồi</h6>
+                <div class="card">
+                    <div class="card-body">
+                        <div class="timeline-step">
+                            <div class="timeline-number bg-primary text-white">1</div>
+                            <div class="timeline-content">
+                                <strong>Kiểm tra thiết bị eWeLink</strong>
+                            </div>
+                        </div>
+                        <div class="timeline-step">
+                            <div class="timeline-number bg-primary text-white">2</div>
+                            <div class="timeline-content">
+                                <strong>Bật Kênh 1</strong>
+                                <p>Chờ 10 giây</p>
+                            </div>
+                        </div>
+                        <div class="timeline-step">
+                            <div class="timeline-number bg-primary text-white">3</div>
+                            <div class="timeline-content">
+                                <strong>Bật Kênh 2</strong>
+                                <p>Chờ 5 giây</p>
+                            </div>
+                        </div>
+                        <div class="timeline-step">
+                            <div class="timeline-number bg-primary text-white">4</div>
+                            <div class="timeline-content">
+                                <strong>Tắt Kênh 2</strong>
+                            </div>
+                        </div>
+                        <div class="timeline-step">
+                            <div class="timeline-number bg-success text-white">5</div>
+                            <div class="timeline-content">
+                                <strong>Kiểm tra kết quả</strong>
+                                <p>Chờ 90 giây</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h6>4.3. Phân biệt nguyên nhân</h6>
+                <table class="table table-bordered table-sm">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Tình huống</th>
+                            <th>Nguyên nhân</th>
+                            <th>Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="text-danger">eWeLink OFFLINE</span></td>
+                            <td>Mất điện</td>
+                            <td>Thử lại chậm (3,3,5,10,60,120 phút)</td>
+                        </tr>
+                        <tr>
+                            <td><span class="text-success">eWeLink ONLINE</span></td>
+                            <td>Lỗi phần mềm/treo máy</td>
+                            <td>Thử lại nhanh (2,2,3,5,10,20 phút)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </details>
+
+    <!-- Section 5: Scheduled Shutdown -->
+    <details>
+        <summary>
+            <div class="help-title">
+                <i class="fas fa-clock"></i>
+                5. Quy trình Scheduled Shutdown
+            </div>
+            <i class="fas fa-chevron-down help-icon"></i>
+        </summary>
+        <div class="help-content">
+            <div class="help-content-inner">
+                <h6>5.1. Hoạt động như thế nào?</h6>
+                <div class="card">
+                    <div class="card-body">
+                        <div class="timeline-step">
+                            <div class="timeline-number bg-primary text-white">1</div>
+                            <div class="timeline-content">
+                                <strong>Giờ tắt</strong>
+                                <p>Tắt Kênh 1 tất cả trạm (xử lý theo batch)</p>
+                            </div>
+                        </div>
+                        <div class="timeline-step">
+                            <div class="timeline-number bg-warning text-dark">2</div>
+                            <div class="timeline-content">
+                                <strong>Chờ</strong>
+                                <p>Thời gian tắt (1-5 phút)</p>
+                            </div>
+                        </div>
+                        <div class="timeline-step">
+                            <div class="timeline-number bg-success text-white">3</div>
+                            <div class="timeline-content">
+                                <strong>Giờ bật</strong>
+                                <p>Bật lại Kênh 1 tất cả trạm</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h6>5.2. Cấu hình khuyến nghị</h6>
+                <table class="table table-bordered table-sm">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Tham số</th>
+                            <th>Giá trị</th>
+                            <th>Mô tả</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Giờ tắt</td>
+                            <td><code>02:00:00</code></td>
+                            <td>Tắt vào 2h sáng</td>
+                        </tr>
+                        <tr>
+                            <td>Thời gian tắt</td>
+                            <td><code>3-5 phút</code></td>
+                            <td>Thời gian trạm tắt nguồn</td>
+                        </tr>
+                        <tr>
+                            <td>Số trạm/batch</td>
+                            <td><code>5</code></td>
+                            <td>Số trạm xử lý mỗi lần</td>
+                        </tr>
+                        <tr>
+                            <td>Delay</td>
+                            <td><code>10-15 giây</code></td>
+                            <td>Chờ giữa các batch</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </details>
+
+    <!-- Section 6: Xử lý sự cố -->
+    <details>
+        <summary>
+            <div class="help-title">
+                <i class="fas fa-exclamation-triangle"></i>
+                6. Xử lý sự cố
+            </div>
+            <i class="fas fa-chevron-down help-icon"></i>
+        </summary>
+        <div class="help-content">
+            <div class="help-content-inner">
+                <h6>6.1. Trạm không phục hồi</h6>
+                <ol>
+                    <li>Kiểm tra <strong>thiết bị eWeLink</strong> có online không</li>
+                    <li>Kiểm tra <strong>kết nối điện</strong> của trạm</li>
+                    <li>Kiểm tra <strong>token eWeLink</strong> còn hạn không</li>
+                    <li>Xem <strong>lịch sử phục hồi</strong> để biết lỗi chi tiết</li>
+                </ol>
+
+                <h6>6.2. Token eWeLink hết hạn</h6>
+                <ol>
+                    <li>Vào <strong>Cấu hình</strong> → Tab <strong>eWeLink</strong></li>
+                    <li>Nhấn <strong>Đăng nhập eWeLink</strong> để xác thực lại</li>
+                    <li>Hoặc nhấn <strong>Làm mới token</strong> để refresh thủ công</li>
+                </ol>
+
+                <h6>6.3. Scheduled Shutdown không chạy</h6>
+                <ol>
+                    <li>Kiểm tra <strong>cấu hình</strong>: Đã bật tính năng chưa?</li>
+                    <li>Kiểm tra <strong>giờ tắt</strong>: Cấu hình đúng định dạng HH:MM:SS?</li>
+                    <li>Kiểm tra <strong>Logs</strong> để xem lỗi</li>
+                </ol>
+            </div>
+        </div>
+    </details>
+
+    <!-- Section 7: Mã trạng thái -->
+    <details>
+        <summary>
+            <div class="help-title">
+                <i class="fas fa-list-ol"></i>
+                7. Các mã trạng thái
+            </div>
+            <i class="fas fa-chevron-down help-icon"></i>
+        </summary>
+        <div class="help-content">
+            <div class="help-content-inner">
+                <h6>Trạng thái trạm (connectStatus)</h6>
+                <table class="table table-bordered table-sm">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Mã</th>
+                            <th>Ý nghĩa</th>
+                            <th>Màu</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>0</td>
+                            <td>Chưa kết nối</td>
+                            <td><span class="badge bg-secondary">Xám</span></td>
+                        </tr>
+                        <tr>
+                            <td>1</td>
+                            <td>Online</td>
+                            <td><span class="badge bg-success">Xanh</span></td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td>Chưa định vị</td>
+                            <td><span class="badge bg-warning text-dark">Vàng</span></td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td>Offline</td>
+                            <td><span class="badge bg-danger">Đỏ</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h6>Trạng thái Job phục hồi</h6>
+                <table class="table table-bordered table-sm">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Trạng thái</th>
+                            <th>Mô tả</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="badge bg-secondary">PENDING</span></td>
+                            <td>Đang chờ</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-primary">RUNNING</span></td>
+                            <td>Đang chạy</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-info text-dark">CHECKING</span></td>
+                            <td>Đang kiểm tra kết quả</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-success">SUCCESS</span></td>
+                            <td>Phục hồi thành công</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-danger">FAILED</span></td>
+                            <td>Phục hồi thất bại</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-warning text-dark">SKIPPED</span></td>
+                            <td>Bỏ qua (do đang scheduled shutdown)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </details>
+
+    <!-- Section 8: Liên hệ hỗ trợ -->
+    <details>
+        <summary>
+            <div class="help-title">
+                <i class="fas fa-headset"></i>
+                8. Liên hệ hỗ trợ
+            </div>
+            <i class="fas fa-chevron-down help-icon"></i>
+        </summary>
+        <div class="help-content">
+            <div class="help-content-inner">
+                <p>Nếu gặp vấn đề không thể giải quyết:</p>
+                <ul>
+                    <li>Xem logs tại trang <strong>Logs</strong></li>
+                    <li>Kiểm tra thông tin tại <strong>Cấu hình</strong></li>
+                    <li>Liên hệ quản trị viên hệ thống</li>
+                </ul>
+                
+                <div class="alert alert-help mt-3">
+                    <i class="fas fa-lightbulb"></i> <strong>Mẹo:</strong> Thường xuyên kiểm tra trang Dashboard để theo dõi tình trạng hệ thống.
+                </div>
+            </div>
+        </div>
+    </details>
+</div>
