@@ -77,6 +77,8 @@ services:
       AK: ${AK}
       SK: ${SK}
       API_BASE_URL: ${API_BASE_URL}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
     depends_on:
       mysql:
         condition: service_healthy

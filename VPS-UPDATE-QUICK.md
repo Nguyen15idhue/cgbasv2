@@ -5,7 +5,7 @@
 ```bash
 cd /opt/cgbasv2
 chmod +x update-vps.sh
-./update-vps.sh
+sudo ./update-vps.sh
 ```
 
 **Xong!** Script tự động:
