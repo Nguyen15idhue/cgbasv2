@@ -146,10 +146,26 @@ router.post('/update-mapping', async (req, res) => {
             });
         }
 
-        await db.execute(
-            'UPDATE stations SET ewelink_device_id = ?, notes = ? WHERE id = ?',
-            [deviceId, notes || null, stationId]
-        );
+        // Update mapping - handle notes column conditionally
+        if (notes !== undefined) {
+            const [columns] = await db.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'stations' AND COLUMN_NAME = 'notes'");
+            if (columns.length > 0) {
+                await db.execute(
+                    'UPDATE stations SET ewelink_device_id = ?, notes = ? WHERE id = ?',
+                    [deviceId, notes || null, stationId]
+                );
+            } else {
+                await db.execute(
+                    'UPDATE stations SET ewelink_device_id = ? WHERE id = ?',
+                    [deviceId, stationId]
+                );
+            }
+        } else {
+            await db.execute(
+                'UPDATE stations SET ewelink_device_id = ? WHERE id = ?',
+                [deviceId, stationId]
+            );
+        }
 
         res.json({ 
             success: true, 
@@ -172,10 +188,15 @@ router.post('/update-notes', async (req, res) => {
             });
         }
 
-        await db.execute(
-            'UPDATE stations SET notes = ? WHERE id = ?',
-            [notes || null, stationId]
-        );
+        // Check if notes column exists
+        const [columns] = await db.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'stations' AND COLUMN_NAME = 'notes'");
+        
+        if (columns.length > 0) {
+            await db.execute(
+                'UPDATE stations SET notes = ? WHERE id = ?',
+                [notes || null, stationId]
+            );
+        }
 
         res.json({ 
             success: true, 
