@@ -15,6 +15,13 @@
     <button class="btn btn-warning" onclick="toggleAllStations('disable')">
         <i class="fas fa-toggle-off"></i> Vô hiệu hóa tất cả
     </button>
+    <div class="border-start ms-2 ps-2"></div>
+    <button class="btn btn-outline-success" onclick="toggleSelectedStations('enable')">
+        <i class="fas fa-check"></i> Kích hoạt đã chọn
+    </button>
+    <button class="btn btn-outline-warning" onclick="toggleSelectedStations('disable')">
+        <i class="fas fa-times"></i> Vô hiệu đã chọn
+    </button>
     <button class="btn btn-primary" onclick="syncEwelinkDevices()">
         <i class="fas fa-sync"></i> Đồng bộ thiết bị eWeLink
     </button>
@@ -27,6 +34,9 @@
     <table class="table">
         <thead>
             <tr>
+                <th style="width: 40px;">
+                    <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()">
+                </th>
                 <th>Tên trạm</th>
                 <th>Station ID</th>
                 <th>Thiết bị eWelink</th>

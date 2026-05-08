@@ -89,7 +89,7 @@ async function loadSettings() {
         console.error('Error loading settings:', error);
         document.getElementById('settingsTableBody').innerHTML = `
             <tr>
-                <td colspan="5" class="text-center text-danger">
+                <td colspan="7" class="text-center text-danger">
                     <i class="fas fa-exclamation-triangle"></i>
                     Không thể tải dữ liệu
                 </td>
@@ -107,13 +107,16 @@ function renderSettings() {
     if (stations.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="6" class="text-center">
+                <td colspan="7" class="text-center">
                     <i class="fas fa-info-circle"></i> Không có trạm nào
                 </td>
             </tr>
         `;
         return;
     }
+
+    // Reset select all checkbox
+    document.getElementById('selectAllCheckbox').checked = false;
 
     tbody.innerHTML = stations.map(station => {
         const deviceOptions = devices.map(d => 
@@ -133,6 +136,9 @@ function renderSettings() {
 
         return `
             <tr class="${isActive ? '' : 'table-secondary'}">
+                <td>
+                    <input type="checkbox" class="station-checkbox" value="${station.id}">
+                </td>
                 <td>${station.stationName}</td>
                 <td><code>${station.id}</code></td>
                 <td>
@@ -372,6 +378,82 @@ async function toggleAllStations(action) {
             });
         }
     } catch (error) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Lỗi',
+            text: 'Không thể kết nối đến server'
+        });
+    }
+}
+
+// Toggle select all checkboxes
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const checkboxes = document.querySelectorAll('.station-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = selectAllCheckbox.checked;
+    });
+}
+
+// Toggle selected stations
+async function toggleSelectedStations(action) {
+    const checkboxes = document.querySelectorAll('.station-checkbox:checked');
+    const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+    
+    console.log('Selected IDs:', selectedIds);
+    
+    if (selectedIds.length === 0) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Chưa chọn',
+            text: 'Vui lòng chọn ít nhất một trạm'
+        });
+        return;
+    }
+    
+    const actionText = action === 'enable' ? 'kích hoạt' : 'vô hiệu hóa';
+    
+    const result = await Swal.fire({
+        icon: 'question',
+        title: 'Xác nhận',
+        text: `Bạn có chắc muốn ${actionText} ${selectedIds.length} trạm đã chọn?`,
+        showCancelButton: true,
+        confirmButtonText: action === 'enable' ? 'Kích hoạt' : 'Vô hiệu hóa',
+        cancelButtonText: 'Hủy',
+        confirmButtonColor: action === 'enable' ? '#28a745' : '#ffc107'
+    });
+    
+    if (!result.isConfirmed) return;
+    
+    try {
+        console.log('Sending request with:', { stationIds: selectedIds, action });
+        const response = await fetch('/api/stations/toggle-selected', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stationIds: selectedIds, action })
+        });
+
+        console.log('Response status:', response.status);
+        const data = await response.json();
+        console.log('Response data:', data);
+
+        if (response.ok && data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Thành công',
+                text: data.message,
+                timer: 2000
+            });
+            loadSettings(); // Reload
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Lỗi',
+                text: data.message || 'Không thể cập nhật'
+            });
+        }
+    } catch (error) {
+        console.error('Error:', error);
         Swal.fire({
             icon: 'error',
             title: 'Lỗi',

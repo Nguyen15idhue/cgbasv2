@@ -268,6 +268,48 @@ router.post('/toggle-all', async (req, res) => {
     }
 });
 
+// API: Enable/Disable selected stations
+router.post('/toggle-selected', async (req, res) => {
+    try {
+        const { stationIds, action } = req.body;
+
+        if (!stationIds || !Array.isArray(stationIds) || stationIds.length === 0) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Danh sách stationIds không hợp lệ' 
+            });
+        }
+
+        if (!action || !['enable', 'disable'].includes(action)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Action phải là "enable" hoặc "disable"' 
+            });
+        }
+
+        const newStatus = action === 'enable' ? 1 : 0;
+        
+        // Convert stationIds to integers
+        const stationIdsInt = stationIds.map(id => parseInt(id, 10));
+        
+        // Create placeholders for SQL IN clause
+        const placeholders = stationIdsInt.map(() => '?').join(',');
+        
+        const [result] = await db.execute(
+            `UPDATE stations SET is_active = ? WHERE id IN (${placeholders})`,
+            [newStatus, ...stationIdsInt]
+        );
+
+        res.json({ 
+            success: true, 
+            message: `Đã ${action === 'enable' ? 'kích hoạt' : 'vô hiệu hóa'} ${result.affectedRows} trạm`,
+            affectedRows: result.affectedRows
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 // API: Đồng bộ danh sách trạm mới từ CGBAS (không update mapping)
 router.post('/sync', async (req, res) => {
     const cgbasApi = require('../services/cgbasApi');
