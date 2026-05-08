@@ -144,10 +144,15 @@ app.get('/configs', requireAuth, (req, res) => {
 // API Dashboard stats
 app.get('/api/dashboard/stats', requireAuth, async (req, res) => {
     try {
-        // Get station stats
-        const [stations] = await db.execute('SELECT connectStatus FROM station_dynamic_info');
+        // Get station stats - only active stations
+        const [stations] = await db.execute(`
+            SELECT d.connectStatus 
+            FROM station_dynamic_info d
+            INNER JOIN stations s ON d.stationId = s.id
+            WHERE s.is_active = 1
+        `);
         const onlineStations = stations.filter(s => s.connectStatus === 1).length;
-        const offlineStations = stations.filter(s => s.connectStatus === 0).length;
+        const offlineStations = stations.filter(s => s.connectStatus !== 1).length;
         
         // Get pending jobs
         const [jobs] = await db.execute('SELECT COUNT(*) as count FROM station_recovery_jobs WHERE status != "SUCCESS"');

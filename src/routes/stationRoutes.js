@@ -37,6 +37,7 @@ router.get('/list', async (req, res) => {
                 s.lng,
                 s.ewelink_device_id,
                 s.is_active,
+                s.notes,
                 d.connectStatus,
                 d.delay,
                 d.sat_R,
@@ -125,7 +126,7 @@ router.post('/recover', async (req, res) => {
 // API: Cập nhật ánh xạ thiết bị eWeLink cho trạm
 router.post('/update-mapping', async (req, res) => {
     try {
-        const { stationId, deviceId } = req.body;
+        const { stationId, deviceId, notes } = req.body;
 
         if (!stationId || !deviceId) {
             return res.status(400).json({ 
@@ -135,13 +136,39 @@ router.post('/update-mapping', async (req, res) => {
         }
 
         await db.execute(
-            'UPDATE stations SET ewelink_device_id = ? WHERE id = ?',
-            [deviceId, stationId]
+            'UPDATE stations SET ewelink_device_id = ?, notes = ? WHERE id = ?',
+            [deviceId, notes || null, stationId]
         );
 
         res.json({ 
             success: true, 
             message: 'Đã cập nhật ánh xạ thiết bị thành công' 
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// API: Cập nhật ghi chú cho trạm
+router.post('/update-notes', async (req, res) => {
+    try {
+        const { stationId, notes } = req.body;
+
+        if (!stationId) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Thiếu thông tin stationId' 
+            });
+        }
+
+        await db.execute(
+            'UPDATE stations SET notes = ? WHERE id = ?',
+            [notes || null, stationId]
+        );
+
+        res.json({ 
+            success: true, 
+            message: 'Đã cập nhật ghi chú thành công' 
         });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });

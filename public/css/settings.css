@@ -12,6 +12,15 @@
     min-width: 200px;
 }
 
+.table .notes-input {
+    min-width: 150px;
+    max-width: 200px;
+    word-wrap: break-word;
+    word-break: break-word;
+    white-space: pre-wrap;
+    resize: vertical;
+}
+
 /* Mobile Responsive */
 @media (max-width: 768px) {
     .page-header h1 {

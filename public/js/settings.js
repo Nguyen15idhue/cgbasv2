@@ -149,6 +149,14 @@ function renderSettings() {
                 </td>
                 <td>${mappingStatusBadge}</td>
                 <td>
+                    <textarea class="form-control form-control-sm notes-input" 
+                              id="notes_${station.id}" 
+                              rows="2"
+                              placeholder="Ghi chú..."
+                              onblur="saveNotes('${station.id}')"
+                              ${isActive ? '' : 'disabled'}>${station.notes || ''}</textarea>
+                </td>
+                <td>
                     <button class="btn btn-sm ${isActive ? 'btn-warning' : 'btn-success'}" 
                             onclick="toggleStationStatus('${station.id}', ${isActive})">
                         <i class="fas ${isActive ? 'fa-toggle-off' : 'fa-toggle-on'}"></i>
@@ -177,6 +185,7 @@ function renderSettings() {
 // Save mapping
 async function saveMapping(stationId) {
     const deviceId = document.getElementById(`device_${stationId}`).value;
+    const notes = document.getElementById(`notes_${stationId}`).value;
     
     if (!deviceId) {
         Swal.fire({
@@ -191,7 +200,7 @@ async function saveMapping(stationId) {
         const response = await fetch('/api/stations/update-mapping', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ stationId, deviceId })
+            body: JSON.stringify({ stationId, deviceId, notes })
         });
 
         if (response.ok) {
@@ -274,6 +283,35 @@ async function deleteMapping(stationId) {
             title: 'Lỗi',
             text: 'Không thể kết nối đến server'
         });
+    }
+}
+
+// Save notes when user leaves the notes field
+async function saveNotes(stationId) {
+    const notes = document.getElementById(`notes_${stationId}`).value;
+    const station = window.settingsStations.find(s => s.id == stationId || s.id === stationId);
+    
+    // Only save if notes have changed
+    if (station && station.notes === notes) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/stations/update-notes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stationId, notes })
+        });
+
+        if (response.ok) {
+            console.log('Notes saved for station:', stationId);
+            // Update local data
+            if (station) {
+                station.notes = notes;
+            }
+        }
+    } catch (error) {
+        console.error('Error saving notes:', error);
     }
 }
 
