@@ -12,17 +12,22 @@ cd /opt/cgbasv2
 echo "📥 Pulling latest code..."
 git pull origin main
 
-# Backup database
+# Backup database (skip if container not running)
 echo "💾 Creating backup..."
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 mkdir -p ~/backups
-docker exec cgbas-mysql mysqldump --no-tablespaces -u cgbas -p$(grep DB_PASS .env | cut -d '=' -f2) cgbas_db > ~/backups/cgbas_pre_update_$TIMESTAMP.sql
-gzip ~/backups/cgbas_pre_update_$TIMESTAMP.sql
-echo "✅ Backup saved: ~/backups/cgbas_pre_update_$TIMESTAMP.sql.gz"
 
-# Stop containers
+if docker ps --format '{{.Names}}' | grep -q "^cgbas-mysql$"; then
+    docker exec cgbas-mysql mysqldump --no-tablespaces -u cgbas -p$(grep DB_PASS .env | cut -d '=' -f2) cgbas_db > ~/backups/cgbas_pre_update_$TIMESTAMP.sql
+    gzip ~/backups/cgbas_pre_update_$TIMESTAMP.sql
+    echo "✅ Backup saved: ~/backups/cgbas_pre_update_$TIMESTAMP.sql.gz"
+else
+    echo "⚠️  Container cgbas-mysql not running, skipping backup..."
+fi
+
+# Stop containers (if running)
 echo "🛑 Stopping containers..."
-docker-compose --profile prod down
+docker-compose --profile prod down 2>/dev/null || true
 
 # Rebuild
 echo "🔨 Rebuilding image..."
