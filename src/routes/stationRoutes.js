@@ -26,6 +26,17 @@ router.get('/list', async (req, res) => {
         );
         const total = countResult[0].total;
 
+        // Check if notes column exists
+        let hasNotesColumn = false;
+        try {
+            const [columns] = await db.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'stations' AND COLUMN_NAME = 'notes'");
+            hasNotesColumn = columns.length > 0;
+        } catch (e) {
+            hasNotesColumn = false;
+        }
+
+        const notesSelect = hasNotesColumn ? 's.notes,' : '';
+
         // Get paginated data
         const [rows] = await db.query(`
             SELECT 
@@ -37,7 +48,7 @@ router.get('/list', async (req, res) => {
                 s.lng,
                 s.ewelink_device_id,
                 s.is_active,
-                s.notes,
+                ${notesSelect}
                 d.connectStatus,
                 d.delay,
                 d.sat_R,
