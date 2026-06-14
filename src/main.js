@@ -276,6 +276,22 @@ app.get('/redirectUrl', async (req, res) => {
     }
 });
 
+// Public NTRIP health check (cho dashboard - không cần auth)
+const NTRIP_SERVICE_URL = process.env.NTRIP_SERVICE_URL || 'http://ntrip-dev:3101';
+app.get('/api/ntrip/health', async (req, res) => {
+    try {
+        const response = await fetch(`${NTRIP_SERVICE_URL}/health`);
+        const data = await response.json();
+        res.json({ success: true, ntrip_service: data });
+    } catch (err) {
+        res.status(503).json({ 
+            success: false, 
+            message: 'NTRIP service không khả dụng',
+            error: err.message 
+        });
+    }
+});
+
 // PROTECTED API ROUTES (Cần đăng nhập)
 app.use('/api/stations', requireAuth, stationRoutes);
 app.use('/api/ewelink', requireAuth, ewelinkRoutes);
