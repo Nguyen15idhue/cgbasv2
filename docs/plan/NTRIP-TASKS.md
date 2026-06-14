@@ -109,9 +109,9 @@ docker exec cgbas-app node scripts/stress-recovery-concurrency.js
 
 ---
 
-## PHASE 2: GO SERVICE SCAFFOLDING (1 ngày)
+## PHASE 2: GO SERVICE SCAFFOLDING (1 ngày) ✅ DONE (2026-06-14)
 
-### Task 2.1: Tạo cấu trúc thư mục Go service
+### Task 2.1: ✅ DONE - Tạo cấu trúc thư mục Go service
 - **Thư mục gốc:** `ntrip-client/`
 - **Cấu trúc:**
   ```
@@ -132,24 +132,27 @@ docker exec cgbas-app node scripts/stress-recovery-concurrency.js
   └── api/
       └── handlers.go
   ```
+- **Kết quả:** Tất cả files đã được tạo thành công.
 
-### Task 2.2: Khởi tạo Go module
+### Task 2.2: ✅ DONE - Khởi tạo Go module
 - **Command (trong container):**
   ```bash
-  docker run --rm -v $(pwd)/ntrip-client:/app -w /app golang:1.22-alpine sh -c "go mod init github.com/cgbas/ntrip-client"
+  docker run --rm -v $(pwd)/ntrip-client:/app -w /app golang:1.22-alpine sh -c "go mod init ntripclient && go mod tidy"
   ```
-- **Dependencies cần thêm:**
-  - `github.com/go-sql-driver/mysql` - MySQL driver
-  - `github.com/joho/godotenv` - Env file loader
+- **Dependencies:**
+  - `github.com/go-sql-driver/mysql v1.8.1` - MySQL driver
+  - `filippo.io/edwards25519 v1.1.0` -间接依赖
+- **Kết quả:** go.mod và go.sum đã được tạo.
 
-### Task 2.3: Viết config module
+### Task 2.3: ✅ DONE - Viết config module
 - **File:** `config/config.go`
 - **Nội dung:**
   - Đọc từ env vars: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`
   - Đọc: `NTRIP_POLL_INTERVAL`, `NTRIP_RECONNECT_DELAY`, `NTRIP_DATA_TIMEOUT`
   - Default values cho tất cả
+- **Kết quả:** Config module hoạt động đúng.
 
-### Task 2.4: Viết models
+### Task 2.4: ✅ DONE - Viết models
 - **File:** `models/station.go`
   ```go
   type NtripConfig struct {
@@ -174,19 +177,22 @@ docker exec cgbas-app node scripts/stress-recovery-concurrency.js
       OfflineDurationSec  int
   }
   ```
+- **Kết quả:** Models đã được tạo đúng.
 
-### Task 2.5: Viết MySQL repository
+### Task 2.5: ✅ DONE - Viết MySQL repository
 - **File:** `repository/mysql.go`
 - **Functions:**
-  - `GetActiveNtripStations()` - Query stations có status_source='ntrip'
-  - `UpsertDynamicInfo(info DynamicInfo)` - Upsert vào station_dynamic_info
-  - `InsertLog(stationID, eventType, message)` - Ghi log vào ntrip_logs
+  - `GetActiveNtripStations()` - Query stations có status_source='ntrip' ✅
+  - `UpsertDynamicInfo(info DynamicInfo)` - Upsert vào station_dynamic_info ✅
+  - `InsertLog(stationID, eventType, message)` - Ghi log vào ntrip_logs ✅
+- **Kết quả:** Repository hoạt động đúng.
 
-### Task 2.6: Tạo Dockerfile cho Go service
+### Task 2.6: ✅ DONE - Tạo Dockerfile cho Go service
 - **File:** `ntrip-client/Dockerfile`
 - **Multi-stage build:**
   - Stage 1: Build với `golang:1.22-alpine`
-  - Stage 2: Runtime với `alpine:3.19` (~10MB)
+  - Stage 2: Runtime với `alpine:3.19` (~30MB)
+- **Kết quả:** Docker image build thành công, kích thước 30.6MB.
 
 ---
 
