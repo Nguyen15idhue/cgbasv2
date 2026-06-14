@@ -42,7 +42,7 @@ func (m *MySQL) Close() error {
 
 func (m *MySQL) GetActiveNtripStations() ([]models.NtripConfig, error) {
 	query := `
-		SELECT nc.station_id, nc.ntrip_url, nc.mountpoint, nc.ntrip_user, nc.ntrip_pass, nc.interval_seconds, nc.is_active
+		SELECT nc.station_id, nc.ntrip_url, nc.mountpoint, nc.ntrip_user, nc.ntrip_pass, nc.interval_seconds, nc.is_active, nc.gga_frequency
 		FROM ntrip_config nc
 		INNER JOIN stations s ON nc.station_id = s.id
 		WHERE nc.is_active = 1 AND s.status_source = 'ntrip'
@@ -57,7 +57,7 @@ func (m *MySQL) GetActiveNtripStations() ([]models.NtripConfig, error) {
 	var stations []models.NtripConfig
 	for rows.Next() {
 		var s models.NtripConfig
-		if err := rows.Scan(&s.StationID, &s.NtripURL, &s.Mountpoint, &s.NtripUser, &s.NtripPass, &s.IntervalSeconds, &s.IsActive); err != nil {
+		if err := rows.Scan(&s.StationID, &s.NtripURL, &s.Mountpoint, &s.NtripUser, &s.NtripPass, &s.IntervalSeconds, &s.IsActive, &s.GGAFrequency); err != nil {
 			log.Printf("Error scanning ntrip station: %v", err)
 			continue
 		}

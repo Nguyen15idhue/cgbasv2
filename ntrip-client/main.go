@@ -186,5 +186,6 @@ func configChanged(old models.NtripConfig, new models.NtripConfig) bool {
 	return old.NtripURL != new.NtripURL ||
 		old.Mountpoint != new.Mountpoint ||
 		old.NtripUser != new.NtripUser ||
-		old.NtripPass != new.NtripPass
+		old.NtripPass != new.NtripPass ||
+		old.GGAFrequency != new.GGAFrequency
 }

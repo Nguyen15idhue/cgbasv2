@@ -41,6 +41,15 @@
                     <label class="form-label">Password</label>
                     <input type="password" class="form-control" id="ntripPass" placeholder="Password" autocomplete="new-password">
                 </div>
+                <div class="mb-3">
+                    <label class="form-label">Tần suất gửi GGA</label>
+                    <select class="form-select" id="ntripGgaFrequency">
+                        <option value="5hz">5 Hz (200ms)</option>
+                        <option value="1hz" selected>1 Hz (1s)</option>
+                        <option value="2s">2 giây</option>
+                        <option value="5s">5 giây</option>
+                    </select>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>

@@ -410,7 +410,7 @@ router.get('/:stationId/ntrip-config', async (req, res) => {
 router.post('/:stationId/ntrip-config', async (req, res) => {
     try {
         const { stationId } = req.params;
-        const { ntrip_url, mountpoint, ntrip_user, ntrip_pass, interval_seconds, is_active } = req.body;
+        const { ntrip_url, mountpoint, ntrip_user, ntrip_pass, interval_seconds, is_active, gga_frequency } = req.body;
 
         // Validate required fields
         if (!ntrip_url || !mountpoint) {
@@ -441,7 +441,8 @@ router.post('/:stationId/ntrip-config', async (req, res) => {
             ntrip_user,
             ntrip_pass,
             interval_seconds,
-            is_active
+            is_active,
+            gga_frequency
         });
 
         notifyNtripReload(stationId);

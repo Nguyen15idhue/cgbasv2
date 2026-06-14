@@ -103,15 +103,16 @@ async function getNtripConfig(stationId) {
 // Cập nhật NTRIP config
 async function upsertNtripConfig(stationId, config) {
     const sql = `
-        INSERT INTO ntrip_config (station_id, ntrip_url, mountpoint, ntrip_user, ntrip_pass, interval_seconds, is_active)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO ntrip_config (station_id, ntrip_url, mountpoint, ntrip_user, ntrip_pass, interval_seconds, is_active, gga_frequency)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
         ntrip_url=VALUES(ntrip_url),
         mountpoint=VALUES(mountpoint),
         ntrip_user=VALUES(ntrip_user),
         ntrip_pass=VALUES(ntrip_pass),
         interval_seconds=VALUES(interval_seconds),
-        is_active=VALUES(is_active)
+        is_active=VALUES(is_active),
+        gga_frequency=VALUES(gga_frequency)
     `;
     return db.query(sql, [
         stationId,
@@ -120,7 +121,8 @@ async function upsertNtripConfig(stationId, config) {
         config.ntrip_user || null,
         config.ntrip_pass || null,
         config.interval_seconds || 5,
-        config.is_active !== undefined ? config.is_active : 1
+        config.is_active !== undefined ? config.is_active : 1,
+        config.gga_frequency || '1hz'
     ]);
 }
 

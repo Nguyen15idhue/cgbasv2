@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
+	"math/rand"
 	"net"
 	"net/url"
 	"strconv"
@@ -176,6 +177,10 @@ func (c *Client) connect(dataTimeout int) error {
 
 		c.updateStatus(c.config.StationID, statusOnline, 0, 0, 0, 0, 0)
 
+		// Start GGA sender goroutine
+		ggaStopCh := make(chan struct{})
+		go c.sendGGA(conn, ggaStopCh)
+
 		// Read data stream
 		buf := make([]byte, 4096)
 		lastDataTime := time.Now()
@@ -183,6 +188,7 @@ func (c *Client) connect(dataTimeout int) error {
 		for {
 			select {
 			case <-c.stopCh:
+				close(ggaStopCh)
 				c.repo.InsertLog(c.config.StationID, "disconnect", "client stopped")
 				return nil
 			default:
@@ -191,6 +197,7 @@ func (c *Client) connect(dataTimeout int) error {
 			conn.SetReadDeadline(time.Now().Add(time.Duration(dataTimeout+5) * time.Second))
 			n, err := reader.Read(buf)
 			if err != nil {
+				close(ggaStopCh)
 				if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 					log.Printf("[NTRIP:%s] Data timeout: no data for %ds", c.config.StationID, dataTimeout)
 					c.repo.InsertLog(c.config.StationID, "timeout", fmt.Sprintf("no data for %ds", dataTimeout))
@@ -281,4 +288,70 @@ func (c *Client) updateStatus(stationID string, connectStatus, delay, satR, satC
 	if err := c.repo.UpsertDynamicInfo(info); err != nil {
 		log.Printf("[NTRIP:%s] Failed to update status: %v", stationID, err)
 	}
+}
+
+func (c *Client) sendGGA(conn net.Conn, stopCh chan struct{}) {
+	interval := c.getGGAInterval()
+	if interval == 0 {
+		log.Printf("[NTRIP:%s] GGA sending disabled", c.config.StationID)
+		return
+	}
+
+	log.Printf("[NTRIP:%s] GGA sender started (interval: %v)", c.config.StationID, interval)
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-stopCh:
+			log.Printf("[NTRIP:%s] GGA sender stopped", c.config.StationID)
+			return
+		case <-ticker.C:
+			gga := c.generateGGA()
+			_, err := conn.Write([]byte(gga + "\r\n"))
+			if err != nil {
+				log.Printf("[NTRIP:%s] GGA send error: %v", c.config.StationID, err)
+				return
+			}
+			log.Printf("[NTRIP:%s] GGA sent: %s", c.config.StationID, gga[:30]+"...")
+		}
+	}
+}
+
+func (c *Client) getGGAInterval() time.Duration {
+	switch c.config.GGAFrequency {
+	case "5hz":
+		return 200 * time.Millisecond
+	case "1hz":
+		return 1 * time.Second
+	case "2s":
+		return 2 * time.Second
+	case "5s":
+		return 5 * time.Second
+	default:
+		return 1 * time.Second
+	}
+}
+
+func (c *Client) generateGGA() string {
+	now := time.Now().UTC()
+
+	// Random Vietnam coordinates (approx lat 8-23, lon 102-110)
+	lat := 10.0 + rand.Float64()*10.0
+	lon := 105.0 + rand.Float64()*5.0
+
+	latDeg := int(lat)
+	latMin := (lat - float64(latDeg)) * 60.0
+	lonDeg := int(lon)
+	lonMin := (lon - float64(lonDeg)) * 60.0
+
+	latDir := "N"
+	lonDir := "E"
+
+	// Format: $GPGGA,HHMMSS.SS,DDMM.MMMMM,N,DDDMM.MMMMM,E,Q,XX,X.X,X.X,M,X.X,M,XXXX,XXXX
+	return fmt.Sprintf("$GPGGA,%02d%02d%02d.00,%02d%07.4f,%s,%03d%07.4f,%s,1,08,0.9,50.0,M,0.0,M,,",
+		now.Hour(), now.Minute(), now.Second(),
+		latDeg, latMin, latDir,
+		lonDeg, lonMin, lonDir)
 }

@@ -8,4 +8,5 @@ type NtripConfig struct {
 	NtripPass       string
 	IntervalSeconds int
 	IsActive        bool
+	GGAFrequency    string
 }

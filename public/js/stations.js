@@ -173,6 +173,7 @@ async function openNtripModal(stationId) {
     document.getElementById('ntripMountpoint').value = '';
     document.getElementById('ntripUser').value = '';
     document.getElementById('ntripPass').value = '';
+    document.getElementById('ntripGgaFrequency').value = '1hz';
     
     try {
         const response = await fetch(`/api/stations/${stationId}/ntrip-config`);
@@ -183,6 +184,7 @@ async function openNtripModal(stationId) {
                 document.getElementById('ntripMountpoint').value = result.data.mountpoint || '';
                 document.getElementById('ntripUser').value = result.data.ntrip_user || '';
                 document.getElementById('ntripPass').value = result.data.ntrip_pass || '';
+                document.getElementById('ntripGgaFrequency').value = result.data.gga_frequency || '1hz';
             }
         }
     } catch (e) {}
@@ -203,7 +205,8 @@ async function switchSource(source) {
             ntrip_url: document.getElementById('ntripUrl').value,
             mountpoint: document.getElementById('ntripMountpoint').value,
             ntrip_user: document.getElementById('ntripUser').value,
-            ntrip_pass: document.getElementById('ntripPass').value
+            ntrip_pass: document.getElementById('ntripPass').value,
+            gga_frequency: document.getElementById('ntripGgaFrequency').value
         };
         
         if (!config.ntrip_url || !config.mountpoint) {
