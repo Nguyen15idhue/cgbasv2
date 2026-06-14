@@ -55,10 +55,10 @@ else
     echo "   ⚠️  App (port 3001): FAILED"
 fi
 
-if curl -f http://localhost:8080/health > /dev/null 2>&1; then
-    echo "   ✅ NTRIP (port 8080): OK"
+if curl -f http://localhost:3101/health > /dev/null 2>&1; then
+    echo "   ✅ NTRIP (port 3101): OK"
 else
-    echo "   ⚠️  NTRIP (port 8080): FAILED"
+    echo "   ⚠️  NTRIP (port 3101): FAILED"
 fi
 
 # Show container status

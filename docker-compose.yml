@@ -45,6 +45,7 @@ services:
       AK: ${AK}
       SK: ${SK}
       API_BASE_URL: ${API_BASE_URL}
+      NTRIP_SERVICE_URL: http://ntrip-dev:3101
     volumes:
       - .:/app
       - /app/node_modules
@@ -79,6 +80,7 @@ services:
       API_BASE_URL: ${API_BASE_URL}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+      NTRIP_SERVICE_URL: http://ntrip-prod:3101
     depends_on:
       mysql:
         condition: service_healthy
