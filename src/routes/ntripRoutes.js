@@ -4,7 +4,7 @@ const db = require('../config/database');
 const stationRepo = require('../repository/stationRepo');
 
 // NTRIP Service URL (Go service)
-const NTRIP_SERVICE_URL = process.env.NTRIP_SERVICE_URL || 'http://ntrip-dev:8080';
+const NTRIP_SERVICE_URL = process.env.NTRIP_SERVICE_URL || 'http://ntrip-dev:3101';
 
 // API: Health check từ Go NTRIP service
 router.get('/health', async (req, res) => {

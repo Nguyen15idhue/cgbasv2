@@ -103,7 +103,7 @@ services:
     container_name: cgbas-ntrip-dev
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "3101:3101"
     environment:
       TZ: Asia/Ho_Chi_Minh
       DB_HOST: mysql
@@ -111,7 +111,7 @@ services:
       DB_NAME: ${DB_NAME:-cgbas_db}
       DB_USER: root
       DB_PASS: ${DB_PASS:-cgbaspassword}
-      LISTEN_ADDR: ":8080"
+      LISTEN_ADDR: ":3101"
       NTRIP_POLL_INTERVAL: 5
       NTRIP_RECONNECT_DELAY: 30
       NTRIP_DATA_TIMEOUT: 30
@@ -131,7 +131,7 @@ services:
     container_name: cgbas-ntrip-prod
     restart: always
     ports:
-      - "8080:8080"
+      - "3101:3101"
     environment:
       TZ: Asia/Ho_Chi_Minh
       DB_HOST: mysql
@@ -139,7 +139,7 @@ services:
       DB_NAME: ${DB_NAME:-cgbas_db}
       DB_USER: root
       DB_PASS: ${DB_PASS:-cgbaspassword}
-      LISTEN_ADDR: ":8080"
+      LISTEN_ADDR: ":3101"
       NTRIP_POLL_INTERVAL: ${NTRIP_POLL_INTERVAL:-5}
       NTRIP_RECONNECT_DELAY: ${NTRIP_RECONNECT_DELAY:-30}
       NTRIP_DATA_TIMEOUT: ${NTRIP_DATA_TIMEOUT:-30}

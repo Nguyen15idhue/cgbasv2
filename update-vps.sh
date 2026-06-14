@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Quick update script for CGBAS on VPS
+# Quick update script for CGBAS on VPS (with NTRIP support)
 
 set -e
 
@@ -18,7 +18,7 @@ TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 mkdir -p ~/backups
 
 if docker ps --format '{{.Names}}' | grep -q "^cgbas-mysql$"; then
-    docker exec cgbas-mysql mysqldump --no-tablespaces -u cgbas -p$(grep DB_PASS .env | cut -d '=' -f2) cgbas_db > ~/backups/cgbas_pre_update_$TIMESTAMP.sql
+    docker exec cgbas-mysql mysqldump --no-tablespaces -u root -p$(grep DB_PASS .env | cut -d '=' -f2) cgbas_db > ~/backups/cgbas_pre_update_$TIMESTAMP.sql
     gzip ~/backups/cgbas_pre_update_$TIMESTAMP.sql
     echo "✅ Backup saved: ~/backups/cgbas_pre_update_$TIMESTAMP.sql.gz"
 else
@@ -29,9 +29,9 @@ fi
 echo "🛑 Stopping containers..."
 docker-compose --profile prod down 2>/dev/null || true
 
-# Rebuild
-echo "🔨 Rebuilding image..."
-docker-compose build --no-cache app-prod
+# Rebuild ALL services
+echo "🔨 Rebuilding images (app-prod + ntrip-prod)..."
+docker-compose build --no-cache app-prod ntrip-prod
 
 # Start containers
 echo "🚀 Starting containers..."
@@ -41,19 +41,44 @@ docker-compose --profile prod up -d
 echo "⏳ Waiting for application to be healthy..."
 sleep 10
 
+# Run pending migrations (if any new .sql files)
+echo "📦 Checking for new migrations..."
+MIGRATION_FILES=$(ls -1 src/migrations/*.sql 2>/dev/null | wc -l)
+echo "   Found $MIGRATION_FILES migration files"
+
 # Check health
+echo ""
+echo "🔍 Health checks:"
 if curl -f http://localhost:3001/health > /dev/null 2>&1; then
-    echo "✅ Update successful! Application is healthy."
+    echo "   ✅ App (port 3001): OK"
 else
-    echo "⚠️  Warning: Health check failed. Check logs:"
-    echo "   docker-compose logs -f app-prod"
+    echo "   ⚠️  App (port 3001): FAILED"
 fi
 
-# Show logs
+if curl -f http://localhost:8080/health > /dev/null 2>&1; then
+    echo "   ✅ NTRIP (port 8080): OK"
+else
+    echo "   ⚠️  NTRIP (port 8080): FAILED"
+fi
+
+# Show container status
 echo ""
-echo "📋 Recent logs:"
-docker-compose logs --tail=20 app-prod
+echo "📊 Container status:"
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep cgbas
+
+# Show recent logs
+echo ""
+echo "📋 Recent logs (app):"
+docker-compose logs --tail=5 app-prod
+
+echo ""
+echo "📋 Recent logs (ntrip):"
+docker-compose logs --tail=5 ntrip-prod
 
 echo ""
 echo "✨ Update complete!"
-echo "View full logs: docker-compose logs -f"
+echo ""
+echo "Useful commands:"
+echo "   docker-compose logs -f app-prod      # App logs"
+echo "   docker-compose logs -f ntrip-prod    # NTRIP logs"
+echo "   docker-compose ps                     # Container status"

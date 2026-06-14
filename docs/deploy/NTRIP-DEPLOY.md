@@ -53,13 +53,13 @@ docker compose --profile prod logs cgbas-ntrip-prod | grep "Connected to MySQL"
 
 ```bash
 # Health
-curl http://localhost:8080/health
+curl http://localhost:3101/health
 
 # Status (tất cả trumps NTRIP)
-curl http://localhost:8080/status
+curl http://localhost:3101/status
 
 # Reload config (khi đổi config trong DB)
-curl -X POST http://localhost:8080/reload
+curl -X POST http://localhost:3101/reload
 ```
 
 ---

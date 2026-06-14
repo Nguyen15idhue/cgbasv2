@@ -3,7 +3,7 @@ const router = express.Router();
 const db = require('../config/database');
 const stationRepo = require('../repository/stationRepo');
 
-const NTRIP_SERVICE_URL = process.env.NTRIP_SERVICE_URL || 'http://ntrip-dev:8080';
+const NTRIP_SERVICE_URL = process.env.NTRIP_SERVICE_URL || 'http://ntrip-dev:3101';
 
 async function notifyNtripReload(stationId) {
     try {
