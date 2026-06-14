@@ -99,12 +99,24 @@ Startup
 | `mountpoint` | Mount point name |
 | `ntrip_user` | Username NTRIP |
 | `ntrip_pass` | Password NTRIP |
-| `interval` | Tần suất poll (giây) |
+| `interval` | Tần suất poll (giây) vao database |
 
-### 4.5 Xử lý lỗi
-- Mất kết nối NTRIP → Ghi `connectStatus = 3` (Offline)
-- Reconnect tự động sau 30 giây
-- Log tất cả sự kiện (connection, disconnect, error)
+### 4.5 Xử lý trạng thái và lỗi
+
+**Trạng thái kết nối NTRIP:**
+
+| connectStatus | Mô tả | Điều kiện |
+|---------------|-------|-----------|
+| `1` | Online | Kết nối NTRIP thành công, đang nhận dữ liệu RTCM |
+| `2` | No Data | Kết nối thành công nhưng không nhận được dữ liệu (timeout) |
+| `3` | Offline | Mất kết nối NTRIP hoặc lỗi kết nối |
+
+**Logic xử lý:**
+- Kết nối thành công + có dữ liệu RTCM → Ghi `connectStatus = 1`
+- Kết nối thành công + không có dữ liệu > 30 giây → Ghi `connectStatus = 2`
+- Mất kết nối NTRIP / lỗi kết nối → Ghi `connectStatus = 3`
+- Reconnect tự động sau 30 giây khi mất kết nối
+- Log tất cả sự kiện (connection, disconnect, error, timeout)
 
 ---
 
