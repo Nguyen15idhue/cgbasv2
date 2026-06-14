@@ -3,6 +3,18 @@ const router = express.Router();
 const db = require('../config/database');
 const stationRepo = require('../repository/stationRepo');
 
+const NTRIP_SERVICE_URL = process.env.NTRIP_SERVICE_URL || 'http://ntrip-dev:8080';
+
+async function notifyNtripReload(stationId) {
+    try {
+        await fetch(`${NTRIP_SERVICE_URL}/reload`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stationId })
+        });
+    } catch (e) {}
+}
+
 // API: Lấy danh sách trạm với thông tin đầy đủ (có pagination)
 router.get('/list', async (req, res) => {
     try {
@@ -36,17 +48,6 @@ router.get('/list', async (req, res) => {
         );
         const total = countResult[0].total;
 
-        // Check if notes column exists
-        let hasNotesColumn = false;
-        try {
-            const [columns] = await db.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'stations' AND COLUMN_NAME = 'notes'");
-            hasNotesColumn = columns.length > 0;
-        } catch (e) {
-            hasNotesColumn = false;
-        }
-
-        const notesSelect = hasNotesColumn ? 's.notes,' : '';
-
         // Get paginated data
         const [rows] = await db.query(`
             SELECT 
@@ -54,19 +55,28 @@ router.get('/list', async (req, res) => {
                 s.stationName,
                 s.identificationName,
                 s.stationType,
+                s.receiverType,
+                s.antennaType,
+                s.antennaHigh,
                 s.lat,
                 s.lng,
+                s.status,
+                s.createTime,
+                s.updateTime,
                 s.ewelink_device_id,
                 s.is_active,
                 s.status_source,
-                ${notesSelect}
+                s.notes,
                 d.connectStatus,
+                d.epochTime,
                 d.delay,
                 d.sat_R,
                 d.sat_C,
                 d.sat_E,
                 d.sat_G,
-                d.updateTime as lastUpdate
+                d.updateTime as lastDynamicUpdate,
+                d.first_offline_at,
+                d.offline_duration_seconds
             FROM stations s
             LEFT JOIN station_dynamic_info d ON s.id = d.stationId
             ${whereClause}
@@ -434,6 +444,8 @@ router.post('/:stationId/ntrip-config', async (req, res) => {
             is_active
         });
 
+        notifyNtripReload(stationId);
+
         res.json({ 
             success: true, 
             message: 'Đã cập nhật NTRIP config thành công' 
@@ -466,6 +478,10 @@ router.post('/:stationId/set-source', async (req, res) => {
         }
 
         await stationRepo.updateStatusSource(stationId, source);
+
+        if (source === 'ntrip') {
+            notifyNtripReload(stationId);
+        }
 
         res.json({ 
             success: true, 

@@ -29,7 +29,8 @@ function initCronJobs() {
         
         try {
             // Chỉ lấy CGBAS stations (skip NTRIP - Go service xử lý)
-            const ids = await getCgbasStationIds();
+            const allIds = await getCgbasStationIds();
+            const ids = allIds.filter(id => /^\d+$/.test(id));
             if (ids.length > 0) {
                 logger.info(`[${now}] 📡 Đồng bộ vệ tinh CGBAS (${ids.length} trạm)...`);
                 

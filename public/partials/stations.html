@@ -1,12 +1,52 @@
 <div class="page-header">
     <h1><i class="fas fa-broadcast-tower"></i> Danh sách Trạm CGBAS</h1>
     <div class="header-actions">
-        <input type="text" class="form-control" id="searchInput" placeholder="Tìm kiếm trạm..." onkeyup="filterStations()">
+        <input type="text" class="form-control" id="searchInput" placeholder="Tìm kiếm trạm..." onkeyup="filterStations()" autocomplete="off">
         <select class="form-select" id="statusFilter">
             <option value="">Tất cả trạng thái</option>
             <option value="1">Online</option>
             <option value="0">Offline</option>
         </select>
+        <select class="form-select" id="sourceFilter" onchange="loadStationsData()">
+            <option value="">Tất cả nguồn</option>
+            <option value="cgbas">CGBAS</option>
+            <option value="ntrip">NTRIP</option>
+        </select>
+    </div>
+</div>
+
+<!-- NTRIP Config Modal -->
+<div class="modal fade" id="ntripConfigModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cấu hình NTRIP</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="ntripStationId">
+                <div class="mb-3">
+                    <label class="form-label">NTRIP URL <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="ntripUrl" placeholder="http://ip:port" autocomplete="off">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Mountpoint <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="ntripMountpoint" placeholder="VD: i50_HG" autocomplete="off">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Username</label>
+                    <input type="text" class="form-control" id="ntripUser" placeholder="Username" autocomplete="off">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Password</label>
+                    <input type="password" class="form-control" id="ntripPass" placeholder="Password" autocomplete="new-password">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-warning" onclick="switchSource('ntrip')">Chuyển sang NTRIP</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -21,6 +61,7 @@
                     <tr>
                         <th>Tên trạm</th>
                         <th>Tên định danh</th>
+                        <th>Nguồn</th>
                         <th>Trạng thái</th>
                         <th>Vệ tinh</th>
                         <th>Độ trễ</th>

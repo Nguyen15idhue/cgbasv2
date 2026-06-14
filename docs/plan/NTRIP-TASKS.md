@@ -7,6 +7,46 @@
 - **Phụ thuộc:** Mỗi phase phụ thuộc vào phase trước
 - **Môi trường:** Tất cả command đều chạy qua Docker (local & production)
 
+## Kiến trúc & Nguyên tắc
+
+### Nguồn trạm
+- **Tất cả trạm** đều sync từ CGBAS API (không tạo trạm mới)
+- Trạm được sync qua scheduler每 giờ hoặc đồng bộ thủ công
+
+### Nguồn dữ liệu trạng thái
+Mỗi trạm có thể chọn 1 trong 2 nguồn lấy trạng thái (connectStatus, satellites):
+
+| Nguồn | Cách hoạt động | Dùng khi |
+|--------|----------------|----------|
+| **CGBAS** | Node.js scheduler gọi CGBAS API mỗi 5s | Trạm có kết nối CGBAS server |
+| **NTRIP** | Go service kết nối NTRIP caster liên tục | Trạm muốn dùng NTRIP caster |
+
+### Flow dữ liệu
+```
+┌─────────────────────────────────────────────────────────┐
+│                    CGBAS API (Sync)                      │
+│         Tất cả trạm đều sync từ đây                    │
+│         (Station ID, Name, Location, ...)               │
+└─────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│              station.status_source                       │
+│         'cgbas'  hoặc  'ntrip'                          │
+│         (Chọn nguồn cho từng trạm)                      │
+└─────────────────────────────────────────────────────────┘
+          │                           │
+          ▼                           ▼
+   Node.js Scheduler           Go NTRIP Service
+   (fetch CGBAS API)          (connect NTRIP caster)
+   Mỗi 5s/update              Liên tục
+          │                           │
+          └───────────┬───────────────┘
+                      ▼
+            station_dynamic_info
+            (Cả 2 cùng ghi vào đây)
+```
+
 ---
 
 ## DOCKER COMMANDS REFERENCE
@@ -325,34 +365,43 @@ docker exec cgbas-app-dev node scripts/stress-recovery-concurrency.js
 
 ## PHASE 5: FRONTEND CHANGES (1 ngày)
 
-### Task 5.1: Sửa stations.html - Form tạo/sửa trạm
+### Task 5.1: Sửa stations.html - Hiển thị nguồn dữ liệu
 - **File:** `public/partials/stations.html`
-- **Thêm:**
-  - Dropdown `status_source` (CGBAS PRO / NTRIP Client)
-  - Conditional fields khi chọn NTRIP:
+- **Thay đổi:**
+  - Thêm cột "Nguồn" hiển thị badge CGBAS/NTRIP trong bảng danh sách trạm
+  - Thêm nút "Chuyển nguồn" cho mỗi trạm (chỉ hiện khi trạm đang dùng CGBAS)
+  - Modal/Dialog nhập NTRIP config khi chuyển sang nguồn NTRIP:
     ```html
-    <div id="ntripFields" style="display: none;">
-        <input name="ntrip_url" placeholder="NTRIP URL">
+    <div id="ntripConfigModal" style="display: none;">
+        <input name="ntrip_url" placeholder="NTRIP URL (vd: http://ip:port)">
         <input name="mountpoint" placeholder="Mountpoint">
         <input name="ntrip_user" placeholder="Username">
         <input name="ntrip_pass" type="password" placeholder="Password">
     </div>
     ```
 
-### Task 5.2: Sửa stations.js - Toggle NTRIP fields
+### Task 5.2: Sửa stations.js - Xử lý chuyển nguồn
 - **File:** `public/js/stations.js`
-- **Thêm:**
+- **Thay đổi:**
   ```javascript
-  // Khi thay đổi dropdown status_source
-  document.getElementById('statusSource').addEventListener('change', (e) => {
-      const ntripFields = document.getElementById('ntripFields');
-      ntripFields.style.display = e.target.value === 'ntrip' ? 'block' : 'none';
-  });
+  // Khi nhấn nút "Chuyển sang NTRIP"
+  function switchToNtrip(stationId) {
+      // Hiển thị modal nhập NTRIP config
+      // Sau khi nhập xong, gọi API:
+      POST /api/stations/:stationId/set-source { source: 'ntrip' }
+      POST /api/stations/:stationId/ntrip-config { ntrip_url, mountpoint, ... }
+  }
+  
+  // Khi nhấn nút "Chuyển sang CGBAS"
+  function switchToCgbas(stationId) {
+      // Gọi API:
+      POST /api/stations/:stationId/set-source { source: 'cgbas' }
+  }
   ```
 
 ### Task 5.3: Sửa stations.js - Hiển thị badge nguồn
 - **File:** `public/js/stations.js`
-- **Thay đổi dòng 88-89:**
+- **Thay đổi:**
   ```javascript
   // Thêm badge hiển thị nguồn
   const sourceBadge = station.status_source === 'ntrip' 
@@ -369,20 +418,23 @@ docker exec cgbas-app-dev node scripts/stress-recovery-concurrency.js
 
 ## PHASE 6: INTEGRATION TESTING (1 ngày)
 
-### Task 6.1: Test tạo trạm NTRIP
+### Task 6.1: Test chuyển nguồn dữ liệu
+- **Precondition:** Trạm đã sync từ CGBAS (status_source = 'cgbas')
 - **Steps:**
-  1. Tạo trạm mới, chọn NTRIP Client
-  2. Nhập thông tin NTRIP (có thể dùng test caster)
-  3. Verify: trạm tạo thành công, có bản ghi trong ntrip_config
-  4. Verify: Go service nhận được trạm và bắt đầu connect
+  1. Chọn trạm đang dùng nguồn CGBAS
+  2. Nhấn "Chuyển sang NTRIP"
+  3. Nhập NTRIP config (URL, mountpoint, user, pass)
+  4. Verify: trạm chuyển sang status_source = 'ntrip'
+  5. Verify: Go service nhận được trạm và bắt đầu connect
+  6. Verify: Scheduler ngừng sync trạm này
 
-### Task 6.2: Test chuyển đổi nguồn
+### Task 6.2: Test chuyển ngược về CGBAS
 - **Steps:**
-  1. Tạo trạm CGBAS
-  2. Sửa sang NTRIP
-  3. Verify: Go service bắt đầu manage
-  4. Sửa lại sang CGBAS
-  5. Verify: Go service dừng manage
+  1. Chọn trạm đang dùng nguồn NTRIP
+  2. Nhấn "Chuyển sang CGBAS"
+  3. Verify: trạm chuyển sang status_source = 'cgbas'
+  4. Verify: Go service dừng manage trạm này
+  5. Verify: Scheduler tiếp tục sync trạm này
 
 ### Task 6.3: Test Recovery flow
 - **Steps:**
@@ -504,13 +556,15 @@ Phase 1 (DB)
 - [x] Verify: `docker-compose logs cgbas-ntrip | grep "connectStatus"` ✅
 
 ### Hoàn thành Phase 5:
-- [ ] User có thể chọn nguồn khi tạo/sửa trạm
-- [ ] Dashboard hiển thị đúng badge nguồn
-- [ ] Form ẩn/hiện field NTRIP đúng cách
+- [ ] Hiển thị badge nguồn (CGBAS/NTRIP) trong danh sách trạm
+- [ ] Nút chuyển nguồn hoạt động đúng
+- [ ] Modal nhập NTRIP config hoạt động
+- [ ] Dashboard filter theo nguồn hoạt động
 - [ ] Verify: Kiểm tra qua browser http://localhost:3000
 
 ### Hoàn thành Phase 6:
-- [ ] Tất cả test cases pass
+- [ ] Chuyển nguồn CGBAS → NTRIP hoạt động
+- [ ] Chuyển nguồn NTRIP → CGBAS hoạt động
 - [ ] Không có data conflict giữa 2 service
 - [ ] Recovery flow hoạt động với cả 2 nguồn
 - [ ] Verify: `docker exec cgbas-app node scripts/stress-recovery-concurrency.js`

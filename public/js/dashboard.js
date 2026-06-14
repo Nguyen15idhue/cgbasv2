@@ -20,6 +20,8 @@ async function loadDashboardData() {
         const offlineEl = document.getElementById('offlineStations');
         const pendingEl = document.getElementById('pendingJobs');
         const recoveredEl = document.getElementById('recoveredToday');
+        const cgbasEl = document.getElementById('cgbasStations');
+        const ntripEl = document.getElementById('ntripStations');
         const queueBadgeEl = document.getElementById('queueBadge');
         const userNameEl = document.getElementById('userName');
         const userAvatarEl = document.querySelector('.user-avatar');
@@ -28,6 +30,8 @@ async function loadDashboardData() {
         if (offlineEl) offlineEl.textContent = data.offlineStations || 0;
         if (pendingEl) pendingEl.textContent = data.pendingJobs || 0;
         if (recoveredEl) recoveredEl.textContent = data.recoveredToday || 0;
+        if (cgbasEl) cgbasEl.textContent = data.cgbasStations || 0;
+        if (ntripEl) ntripEl.textContent = data.ntripStations || 0;
         if (queueBadgeEl) queueBadgeEl.textContent = data.pendingJobs || 0;
 
         // Update user info
@@ -36,8 +40,42 @@ async function loadDashboardData() {
             const avatar = data.user.username ? data.user.username.charAt(0).toUpperCase() : 'A';
             if (userAvatarEl) userAvatarEl.textContent = avatar;
         }
+        
+        // Check NTRIP service status
+        checkNtripServiceStatus();
     } catch (error) {
         console.error('Error loading dashboard data:', error);
+    }
+}
+
+// Check NTRIP service status
+async function checkNtripServiceStatus() {
+    try {
+        const response = await fetch('/api/ntrip/health');
+        const statusEl = document.getElementById('ntripServiceStatus');
+        
+        if (!statusEl) return;
+        
+        if (response.ok) {
+            const data = await response.json();
+            // Response: { success: true, ntrip_service: { status: "ok" } }
+            if (data.success && data.ntrip_service && data.ntrip_service.status === 'ok') {
+                statusEl.className = 'badge bg-success';
+                statusEl.textContent = 'Hoạt động';
+            } else {
+                statusEl.className = 'badge bg-warning';
+                statusEl.textContent = 'Lỗi';
+            }
+        } else {
+            statusEl.className = 'badge bg-danger';
+            statusEl.textContent = 'Offline';
+        }
+    } catch (error) {
+        const statusEl = document.getElementById('ntripServiceStatus');
+        if (statusEl) {
+            statusEl.className = 'badge bg-danger';
+            statusEl.textContent = 'Offline';
+        }
     }
 }
 
@@ -100,4 +138,3 @@ async function loadRecentActivities() {
         }
     }
 }
-

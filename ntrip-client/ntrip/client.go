@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"ntripclient/api"
 	"ntripclient/models"
 	"ntripclient/repository"
 )
@@ -22,17 +23,19 @@ const (
 )
 
 type Client struct {
-	repo    *repository.MySQL
-	config  models.NtripConfig
-	stopCh  chan struct{}
-	stopped bool
+	repo     *repository.MySQL
+	handlers *api.Handlers
+	config   models.NtripConfig
+	stopCh   chan struct{}
+	stopped  bool
 }
 
-func NewClient(repo *repository.MySQL, cfg models.NtripConfig) *Client {
+func NewClient(repo *repository.MySQL, handlers *api.Handlers, cfg models.NtripConfig) *Client {
 	return &Client{
-		repo:   repo,
-		config: cfg,
-		stopCh: make(chan struct{}),
+		repo:     repo,
+		handlers: handlers,
+		config:   cfg,
+		stopCh:   make(chan struct{}),
 	}
 }
 
@@ -43,6 +46,10 @@ func (c *Client) Stop() {
 	}
 }
 
+func (c *Client) GetConfig() models.NtripConfig {
+	return c.config
+}
+
 func (c *Client) Run(dataTimeout int, reconnectDelay int) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -50,6 +57,7 @@ func (c *Client) Run(dataTimeout int, reconnectDelay int) {
 		}
 	}()
 
+	attempt := 0
 	for {
 		select {
 		case <-c.stopCh:
@@ -62,33 +70,34 @@ func (c *Client) Run(dataTimeout int, reconnectDelay int) {
 		if err != nil {
 			log.Printf("[NTRIP:%s] Connection ended: %v", c.config.StationID, err)
 			c.repo.InsertLog(c.config.StationID, "disconnect", err.Error())
+		} else {
+			attempt = 0
+			continue
+		}
 
-			for attempt := 1; attempt <= 5; attempt++ {
-				select {
-				case <-c.stopCh:
-					return
-				case <-time.After(time.Duration(reconnectDelay) * time.Second):
-				}
+		for {
+			attempt++
+			delay := reconnectDelay
+			if attempt > 5 {
+				delay = 60
+			}
+			log.Printf("[NTRIP:%s] Reconnect attempt %d (next in %ds)", c.config.StationID, attempt, delay)
+			c.repo.InsertLog(c.config.StationID, "reconnect", fmt.Sprintf("attempt %d (next in %ds)", attempt, delay))
 
-				log.Printf("[NTRIP:%s] Reconnect attempt %d/5", c.config.StationID, attempt)
-				c.repo.InsertLog(c.config.StationID, "reconnect", fmt.Sprintf("attempt %d/5", attempt))
-
-				err = c.connect(dataTimeout)
-				if err == nil {
-					break
-				}
-				log.Printf("[NTRIP:%s] Reconnect attempt %d failed: %v", c.config.StationID, attempt, err)
+			select {
+			case <-c.stopCh:
+				return
+			case <-time.After(time.Duration(delay) * time.Second):
 			}
 
-			if err != nil {
-				log.Printf("[NTRIP:%s] All reconnect attempts failed, retrying in 60s", c.config.StationID)
-				c.repo.InsertLog(c.config.StationID, "error", "all reconnect attempts failed")
-				select {
-				case <-c.stopCh:
-					return
-				case <-time.After(60 * time.Second):
-				}
+			err = c.connect(dataTimeout)
+			if err == nil {
+				log.Printf("[NTRIP:%s] Reconnected successfully", c.config.StationID)
+				c.repo.InsertLog(c.config.StationID, "connect", "reconnected")
+				attempt = 0
+				break
 			}
+			log.Printf("[NTRIP:%s] Reconnect attempt %d failed: %v", c.config.StationID, attempt, err)
 		}
 	}
 }
@@ -263,6 +272,10 @@ func (c *Client) updateStatus(stationID string, connectStatus, delay, satR, satC
 		SatE:          satE,
 		SatG:          satG,
 		UpdateTime:    time.Now().Unix(),
+	}
+
+	if c.handlers != nil {
+		c.handlers.UpdateStatus(info)
 	}
 
 	if err := c.repo.UpsertDynamicInfo(info); err != nil {

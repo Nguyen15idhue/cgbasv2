@@ -155,6 +155,18 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res) => {
         const onlineStations = stations.filter(s => s.connectStatus === 1).length;
         const offlineStations = stations.filter(s => s.connectStatus !== 1).length;
         
+        // Get source stats
+        const [cgbasCount] = await db.execute(`
+            SELECT COUNT(*) as count FROM stations 
+            WHERE is_active = 1 AND (status_source = 'cgbas' OR status_source IS NULL)
+        `);
+        const [ntripCount] = await db.execute(`
+            SELECT COUNT(*) as count FROM stations 
+            WHERE is_active = 1 AND status_source = 'ntrip'
+        `);
+        const cgbasStations = cgbasCount[0].count;
+        const ntripStations = ntripCount[0].count;
+        
         // Get pending jobs
         const [jobs] = await db.execute('SELECT COUNT(*) as count FROM station_recovery_jobs WHERE status != "SUCCESS"');
         const pendingJobs = jobs[0].count;
@@ -171,6 +183,8 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res) => {
             offlineStations,
             pendingJobs,
             recoveredToday,
+            cgbasStations,
+            ntripStations,
             user: req.session.user
         });
     } catch (error) {
