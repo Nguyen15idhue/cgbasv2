@@ -69,21 +69,20 @@ func (m *MySQL) GetActiveNtripStations() ([]models.NtripConfig, error) {
 func (m *MySQL) UpsertDynamicInfo(info models.DynamicInfo) error {
 	query := `
 		INSERT INTO station_dynamic_info 
-		(stationId, connectStatus, delay, sat_R, sat_C, sat_E, sat_G, updateTime)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		(stationId, connectStatus, delay, sat_R, sat_C, sat_E, sat_G)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 		connectStatus = VALUES(connectStatus),
 		delay = VALUES(delay),
 		sat_R = VALUES(sat_R),
 		sat_C = VALUES(sat_C),
 		sat_E = VALUES(sat_E),
-		sat_G = VALUES(sat_G),
-		updateTime = VALUES(updateTime)
+		sat_G = VALUES(sat_G)
 	`
 
 	_, err := m.db.Exec(query,
 		info.StationID, info.ConnectStatus, info.Delay,
-		info.SatR, info.SatC, info.SatE, info.SatG, info.UpdateTime)
+		info.SatR, info.SatC, info.SatE, info.SatG)
 	if err != nil {
 		return fmt.Errorf("upsert dynamic info: %w", err)
 	}

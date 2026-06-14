@@ -2,11 +2,11 @@ package ntrip
 
 import (
 	"bufio"
+	"encoding/base64"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
-	"regexp"
+	"net"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -22,10 +22,10 @@ const (
 )
 
 type Client struct {
-	repo     *repository.MySQL
-	config   models.NtripConfig
-	stopCh   chan struct{}
-	stopped  bool
+	repo    *repository.MySQL
+	config  models.NtripConfig
+	stopCh  chan struct{}
+	stopped bool
 }
 
 func NewClient(repo *repository.MySQL, cfg models.NtripConfig) *Client {
@@ -60,8 +60,8 @@ func (c *Client) Run(dataTimeout int, reconnectDelay int) {
 
 		err := c.connect(dataTimeout)
 		if err != nil {
-			log.Printf("[NTRIP:%s] Connection error: %v", c.config.StationID, err)
-			c.repo.InsertLog(c.config.StationID, "error", err.Error())
+			log.Printf("[NTRIP:%s] Connection ended: %v", c.config.StationID, err)
+			c.repo.InsertLog(c.config.StationID, "disconnect", err.Error())
 
 			for attempt := 1; attempt <= 5; attempt++ {
 				select {
@@ -82,7 +82,7 @@ func (c *Client) Run(dataTimeout int, reconnectDelay int) {
 
 			if err != nil {
 				log.Printf("[NTRIP:%s] All reconnect attempts failed, retrying in 60s", c.config.StationID)
-				c.repo.InsertLog(c.config.StationID, "disconnect", "all reconnect attempts failed")
+				c.repo.InsertLog(c.config.StationID, "error", "all reconnect attempts failed")
 				select {
 				case <-c.stopCh:
 					return
@@ -94,88 +94,131 @@ func (c *Client) Run(dataTimeout int, reconnectDelay int) {
 }
 
 func (c *Client) connect(dataTimeout int) error {
-	url := fmt.Sprintf("%s/%s", strings.TrimRight(c.config.NtripURL, "/"), c.config.Mountpoint)
-
-	req, err := http.NewRequest("GET", url, nil)
+	// Parse NTRIP URL
+	parsedURL, err := url.Parse(c.config.NtripURL)
 	if err != nil {
-		return fmt.Errorf("create request: %w", err)
+		return fmt.Errorf("parse URL: %w", err)
 	}
 
-	req.Header.Set("Ntrip-Version", "NTRIP/2.0")
-	req.Header.Set("User-Agent", "CGBAS-NTRIP-Client/1.0")
+	host := parsedURL.Hostname()
+	port := parsedURL.Port()
+	if port == "" {
+		port = "2101"
+	}
+
+	addr := net.JoinHostPort(host, port)
+
+	log.Printf("[NTRIP:%s] Connecting to %s...", c.config.StationID, addr)
+
+	conn, err := net.DialTimeout("tcp", addr, 10*time.Second)
+	if err != nil {
+		return fmt.Errorf("dial: %w", err)
+	}
+	defer conn.Close()
+
+	// Build NTRIP request
+	var req strings.Builder
+	req.WriteString(fmt.Sprintf("GET /%s HTTP/1.1\r\n", c.config.Mountpoint))
+	req.WriteString(fmt.Sprintf("Host: %s\r\n", addr))
+	req.WriteString("Ntrip-Version: NTRIP/2.0\r\n")
+	req.WriteString("User-Agent: CGBAS-NTRIP-Client/1.0\r\n")
 
 	if c.config.NtripUser != "" {
-		req.SetBasicAuth(c.config.NtripUser, c.config.NtripPass)
+		cred := base64.StdEncoding.EncodeToString([]byte(c.config.NtripUser + ":" + c.config.NtripPass))
+		req.WriteString(fmt.Sprintf("Authorization: Basic %s\r\n", cred))
 	}
 
-	client := &http.Client{Timeout: 0}
-	resp, err := client.Do(req)
+	req.WriteString("\r\n")
+
+	// Send request
+	_, err = conn.Write([]byte(req.String()))
 	if err != nil {
-		return fmt.Errorf("connect: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status: %d", resp.StatusCode)
+		return fmt.Errorf("write request: %w", err)
 	}
 
-	log.Printf("[NTRIP:%s] Connected to %s", c.config.StationID, c.config.NtripURL)
-	c.repo.InsertLog(c.config.StationID, "connect", fmt.Sprintf("connected to %s", c.config.NtripURL))
+	// Read response with timeout
+	conn.SetReadDeadline(time.Now().Add(10 * time.Second))
+	reader := bufio.NewReader(conn)
 
-	lastDataTime := time.Now()
-	connected := true
+	// Read first line to check response
+	firstLine, err := reader.ReadString('\n')
+	if err != nil {
+		return fmt.Errorf("read response: %w", err)
+	}
 
-	c.updateStatus(c.config.StationID, statusOnline, 0, 0, 0, 0, 0)
+	firstLine = strings.TrimSpace(firstLine)
+	log.Printf("[NTRIP:%s] Response: %s", c.config.StationID, firstLine)
 
-	reader := bufio.NewReader(resp.Body)
-	buf := make([]byte, 4096)
-
-	for {
-		select {
-		case <-c.stopCh:
-			c.repo.InsertLog(c.config.StationID, "disconnect", "client stopped")
-			return nil
-		default:
-		}
-
-		n, err := reader.Read(buf)
-		if err != nil {
-			if err == io.EOF {
-				log.Printf("[NTRIP:%s] Stream ended", c.config.StationID)
-			} else {
-				log.Printf("[NTRIP:%s] Read error: %v", c.config.StationID, err)
+	// Check for successful response (NTRIP uses "ICY 200 OK" or "HTTP/1.1 200 OK")
+	if strings.Contains(firstLine, "200") || strings.Contains(firstLine, "ICY") {
+		// Read remaining headers
+		for {
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				break
 			}
-			connected = false
-			break
+			if strings.TrimSpace(line) == "" {
+				break
+			}
 		}
 
-		if n > 0 {
-			lastDataTime = time.Now()
-			connected = true
-			c.parseData(buf[:n])
-		}
+		log.Printf("[NTRIP:%s] Connected to %s (mountpoint: %s)", c.config.StationID, c.config.NtripURL, c.config.Mountpoint)
+		c.repo.InsertLog(c.config.StationID, "connect", fmt.Sprintf("connected to %s/%s", c.config.NtripURL, c.config.Mountpoint))
 
-		if time.Since(lastDataTime) > time.Duration(dataTimeout)*time.Second {
-			log.Printf("[NTRIP:%s] Data timeout", c.config.StationID)
-			c.repo.InsertLog(c.config.StationID, "timeout", fmt.Sprintf("no data for %ds", dataTimeout))
-			connected = false
-			break
-		}
-	}
-
-	if connected {
 		c.updateStatus(c.config.StationID, statusOnline, 0, 0, 0, 0, 0)
-	} else {
-		c.updateStatus(c.config.StationID, statusOffline, 0, 0, 0, 0, 0)
+
+		// Read data stream
+		buf := make([]byte, 4096)
+		lastDataTime := time.Now()
+
+		for {
+			select {
+			case <-c.stopCh:
+				c.repo.InsertLog(c.config.StationID, "disconnect", "client stopped")
+				return nil
+			default:
+			}
+
+			conn.SetReadDeadline(time.Now().Add(time.Duration(dataTimeout+5) * time.Second))
+			n, err := reader.Read(buf)
+			if err != nil {
+				if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+					log.Printf("[NTRIP:%s] Data timeout: no data for %ds", c.config.StationID, dataTimeout)
+					c.repo.InsertLog(c.config.StationID, "timeout", fmt.Sprintf("no data for %ds", dataTimeout))
+					c.updateStatus(c.config.StationID, statusNoData, 0, 0, 0, 0, 0)
+					return fmt.Errorf("data timeout")
+				}
+				log.Printf("[NTRIP:%s] Read error: %v", c.config.StationID, err)
+				c.updateStatus(c.config.StationID, statusOffline, 0, 0, 0, 0, 0)
+				return fmt.Errorf("read error: %w", err)
+			}
+
+			if n > 0 {
+				lastDataTime = time.Now()
+				c.parseData(buf[:n])
+			}
+
+			_ = lastDataTime
+		}
 	}
 
-	return fmt.Errorf("connection lost")
-}
+	// Read remaining error response
+	var errMsg strings.Builder
+	errMsg.WriteString(firstLine)
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			break
+		}
+		errMsg.WriteString("\n")
+		errMsg.WriteString(strings.TrimSpace(line))
+		if strings.TrimSpace(line) == "" {
+			break
+		}
+	}
 
-var (
-	gpggaRe = regexp.MustCompile(`^\$G[PNL][GA][GA],\d{6}[^*]*\*(?:[0-9A-Fa-f]{2})`)
-	satRe   = regexp.MustCompile(`,(\d+),(\d+),(\d+),(\d+),`)
-)
+	return fmt.Errorf("server error: %s", errMsg.String())
+}
 
 func (c *Client) parseData(data []byte) {
 	str := string(data)
@@ -186,6 +229,7 @@ func (c *Client) parseData(data []byte) {
 		if strings.HasPrefix(line, "$GPGGA") || strings.HasPrefix(line, "$GNGGA") {
 			satR, satC, satE, satG := c.extractSatellites(line)
 			c.updateStatus(c.config.StationID, statusOnline, 0, satR, satC, satE, satG)
+			log.Printf("[NTRIP:%s] Satellites - GPS:%d GLONASS:%d Galileo:%d BeiDou:%d", c.config.StationID, satG, satR, satE, satC)
 		}
 	}
 }
