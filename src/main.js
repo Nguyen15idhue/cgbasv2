@@ -152,9 +152,6 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res) => {
             INNER JOIN stations s ON d.stationId = s.id
             WHERE s.is_active = 1
         `);
-        const onlineStations = stations.filter(s => s.connectStatus === 1).length;
-        const offlineStations = stations.filter(s => s.connectStatus !== 1).length;
-        
         // Get source stats
         const [cgbasCount] = await db.execute(`
             SELECT COUNT(*) as count FROM stations 
@@ -177,6 +174,11 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res) => {
             WHERE status = "SUCCESS" AND DATE(updated_at) = CURDATE()
         `);
         const recoveredToday = recovered[0].count;
+
+        // Total active stations
+        const totalActive = cgbasStations + ntripStations;
+        const onlineStations = stations.filter(s => s.connectStatus === 1).length;
+        const offlineStations = totalActive - onlineStations;
         
         res.json({
             onlineStations,
