@@ -3,4 +3,23 @@ dist/
 .env
 .env.local
 .env.production
-/src/logs/
+
+# Logs
+logs/
+*.log
+
+# Demo (contains secrets)
+demo/
+
+# IDE
+.vscode/
+.idea/
+
+# Backup files
+*.bak
+*.old
+*.tmp
+
+# OS files
+Thumbs.db
+.DS_Store
