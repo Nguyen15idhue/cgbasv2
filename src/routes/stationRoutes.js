@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
+const stationRepo = require('../repository/stationRepo');
 
 // API: Lấy danh sách trạm với thông tin đầy đủ (có pagination)
 router.get('/list', async (req, res) => {
@@ -8,20 +9,29 @@ router.get('/list', async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
         const search = req.query.search || '';
+        const source = req.query.source || ''; // Filter by source: 'cgbas', 'ntrip', or '' for all
         const offset = (page - 1) * limit;
 
         // Build search condition
-        let searchCondition = '';
+        let conditions = [];
         let searchParams = [];
+        
         if (search) {
-            searchCondition = 'WHERE s.stationName LIKE ? OR s.identificationName LIKE ? OR s.id LIKE ?';
+            conditions.push('(s.stationName LIKE ? OR s.identificationName LIKE ? OR s.id LIKE ?)');
             const searchPattern = `%${search}%`;
             searchParams = [searchPattern, searchPattern, searchPattern];
         }
+        
+        if (source && ['cgbas', 'ntrip'].includes(source)) {
+            conditions.push('s.status_source = ?');
+            searchParams.push(source);
+        }
+
+        const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
 
         // Get total count
         const [countResult] = await db.query(
-            `SELECT COUNT(*) as total FROM stations s ${searchCondition}`,
+            `SELECT COUNT(*) as total FROM stations s ${whereClause}`,
             searchParams
         );
         const total = countResult[0].total;
@@ -48,6 +58,7 @@ router.get('/list', async (req, res) => {
                 s.lng,
                 s.ewelink_device_id,
                 s.is_active,
+                s.status_source,
                 ${notesSelect}
                 d.connectStatus,
                 d.delay,
@@ -58,7 +69,7 @@ router.get('/list', async (req, res) => {
                 d.updateTime as lastUpdate
             FROM stations s
             LEFT JOIN station_dynamic_info d ON s.id = d.stationId
-            ${searchCondition}
+            ${whereClause}
             ORDER BY s.stationName ASC
             LIMIT ? OFFSET ?
         `, [...searchParams, limit, offset]);
@@ -363,6 +374,102 @@ router.post('/toggle-selected', async (req, res) => {
             success: true, 
             message: `Đã ${action === 'enable' ? 'kích hoạt' : 'vô hiệu hóa'} ${result.affectedRows} trạm`,
             affectedRows: result.affectedRows
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// API: Lấy NTRIP config của trạm
+router.get('/:stationId/ntrip-config', async (req, res) => {
+    try {
+        const { stationId } = req.params;
+        
+        const config = await stationRepo.getNtripConfig(stationId);
+        
+        res.json({ 
+            success: true, 
+            data: config 
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// API: Cập nhật NTRIP config cho trạm
+router.post('/:stationId/ntrip-config', async (req, res) => {
+    try {
+        const { stationId } = req.params;
+        const { ntrip_url, mountpoint, ntrip_user, ntrip_pass, interval_seconds, is_active } = req.body;
+
+        // Validate required fields
+        if (!ntrip_url || !mountpoint) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Thiếu thông tin bắt buộc: ntrip_url, mountpoint' 
+            });
+        }
+
+        // Check if station exists
+        const [station] = await db.execute('SELECT id, status_source FROM stations WHERE id = ?', [stationId]);
+        if (station.length === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Không tìm thấy trạm' 
+            });
+        }
+
+        // Update status_source to ntrip if not already
+        if (station[0].status_source !== 'ntrip') {
+            await stationRepo.updateStatusSource(stationId, 'ntrip');
+        }
+
+        // Save NTRIP config
+        await stationRepo.upsertNtripConfig(stationId, {
+            ntrip_url,
+            mountpoint,
+            ntrip_user,
+            ntrip_pass,
+            interval_seconds,
+            is_active
+        });
+
+        res.json({ 
+            success: true, 
+            message: 'Đã cập nhật NTRIP config thành công' 
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// API: Chuyển trạm sang NTRIP source
+router.post('/:stationId/set-source', async (req, res) => {
+    try {
+        const { stationId } = req.params;
+        const { source } = req.body;
+
+        if (!source || !['cgbas', 'ntrip'].includes(source)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Source phải là "cgbas" hoặc "ntrip"' 
+            });
+        }
+
+        // Check if station exists
+        const [station] = await db.execute('SELECT id FROM stations WHERE id = ?', [stationId]);
+        if (station.length === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Không tìm thấy trạm' 
+            });
+        }
+
+        await stationRepo.updateStatusSource(stationId, source);
+
+        res.json({ 
+            success: true, 
+            message: `Đã chuyển trạm sang nguồn ${source.toUpperCase()}` 
         });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });

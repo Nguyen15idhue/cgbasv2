@@ -1,7 +1,7 @@
 const cron = require('node-cron');
 const logger = require('./logger');
 const { fetchStations, fetchDynamicInfo } = require('../services/cgbasApi');
-const { upsertStations, upsertDynamicInfo, getAllStationIds } = require('../repository/stationRepo');
+const { upsertStations, upsertDynamicInfo, getAllStationIds, getCgbasStationIds } = require('../repository/stationRepo');
 const { checkAndTriggerRecovery } = require('./autoMonitor'); // Import bộ giám sát mới
 const scheduledShutdownService = require('../services/scheduledShutdownService'); // Import scheduled shutdown
 const ewelinkOAuthService = require('../services/ewelinkOAuthService'); // Import OAuth service
@@ -28,9 +28,10 @@ function initCronJobs() {
         const now = new Date().toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
         
         try {
-            const ids = await getAllStationIds();
+            // Chỉ lấy CGBAS stations (skip NTRIP - Go service xử lý)
+            const ids = await getCgbasStationIds();
             if (ids.length > 0) {
-                logger.info(`[${now}] 📡 Đồng bộ vệ tinh & Kiểm tra phục hồi...`);
+                logger.info(`[${now}] 📡 Đồng bộ vệ tinh CGBAS (${ids.length} trạm)...`);
                 
                 // 1. Đồng bộ vệ tinh CGBAS
                 const dyResult = await fetchDynamicInfo(ids);

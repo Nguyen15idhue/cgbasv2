@@ -26,6 +26,7 @@ const ewelinkRoutes = require('./routes/ewelinkRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const configRoutes = require('./routes/configRoutes');
 const scheduledShutdownRoutes = require('./routes/scheduledShutdownRoutes');
+const ntripRoutes = require('./routes/ntripRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -267,6 +268,7 @@ app.use('/api/ewelink', requireAuth, ewelinkRoutes);
 app.use('/api/reports', requireAuth, reportRoutes);
 app.use('/api/configs', requireAuth, configRoutes);
 app.use('/api/scheduled-shutdown', requireAuth, scheduledShutdownRoutes);
+app.use('/api/ntrip', requireAuth, ntripRoutes);
 
 /**
  * Hàm hỗ trợ quét thiết bị eWelink vào DB lúc khởi động
