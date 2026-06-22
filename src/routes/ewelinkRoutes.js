@@ -420,10 +420,10 @@ router.post('/sync-devices', async (req, res) => {
 
                 addedCount++;
             } else {
-                // Chỉ update status (online/offline), không update tên hay thông tin khác
+                // Update tên và trạng thái online
                 await db.execute(
-                    'UPDATE ewelink_devices SET online = ? WHERE deviceid = ?',
-                    [deviceData.online || false, deviceData.deviceid]
+                    'UPDATE ewelink_devices SET name = ?, online = ? WHERE deviceid = ?',
+                    [deviceData.name, deviceData.online || false, deviceData.deviceid]
                 );
 
                 // Update status switches
