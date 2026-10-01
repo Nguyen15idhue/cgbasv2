@@ -164,6 +164,17 @@ test.describe('shutdown history drill-down', () => {
     await expect(sub.locator('.log-timeline')).toContainText('Online lại:');
     await expect(sub.locator('.log-timeline')).toContainText('đã online');
   });
+
+  test('toggle switches do not overlap labels (UI fix)', async ({ page }) => {
+    for (const id of ['newShutdownEnabled', 'newVerifyEnabled']) {
+      const input = page.locator(`#${id}`);
+      const label = page.locator(`label[for="${id}"]`);
+      await expect(input).toBeVisible();
+      const ib = await input.boundingBox();
+      const lb = await label.boundingBox();
+      expect(lb.x, `${id} label overlaps switch`).toBeGreaterThan(ib.x + ib.width);
+    }
+  });
 });
 
 test.describe('smoke (B6 regression)', () => {

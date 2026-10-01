@@ -354,6 +354,13 @@
 ### Ghi chú (P2-B5)
 - Lần chạy lịch 23:23 đầu tiên với code phase 2 sẽ sinh verified rows thật đầu tiên — theo dõi read-only sáng hôm sau.
 
+### Ghi chú bổ sung (fix UI toggle 01/10/2026, chưa commit)
+- Toggle dùng markup Bootstrap 4 (`custom-control custom-switch`) trong khi trang nạp Bootstrap 5.3.2
+  → núm gạt (`::after`) đè lên chữ label. Đã đổi cả 2 toggle (tắt/bật + verify) sang `form-check form-switch`
+  chuẩn Bootstrap 5, xóa CSS custom chết. JS giữ nguyên id nên không ảnh hưởng submit/prefill.
+- Test Playwright mới `toggle switches do not overlap labels` assert hình học (label.x > switch phải);
+  suite 17/17 pass.
+
 ## Phụ lục A — Cài Playwright (✅ đã cài & verify 01/10/2026)
 
 ```bash

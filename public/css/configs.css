@@ -421,66 +421,6 @@ textarea.form-control {
     color: #dc3545;
 }
 
-/* Custom Switch (Checkbox) */
-.custom-control {
-    position: relative;
-    display: block;
-    min-height: 1.5rem;
-    padding-left: 3rem;
-}
-
-.custom-control-input {
-    position: absolute;
-    left: 0;
-    z-index: -1;
-    width: 1rem;
-    height: 1.25rem;
-    opacity: 0;
-}
-
-.custom-switch .custom-control-input:checked ~ .custom-control-label::before {
-    background-color: #28a745;
-    border-color: #28a745;
-}
-
-.custom-switch .custom-control-label::before {
-    left: 0;
-    width: 3rem;
-    pointer-events: all;
-    border-radius: 0.5rem;
-    background-color: #adb5bd;
-    border: 1px solid #adb5bd;
-    height: 1.5rem;
-    content: "";
-    position: absolute;
-    top: 0;
-    display: block;
-    transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
-}
-
-.custom-switch .custom-control-label::after {
-    top: calc(0.125rem);
-    left: calc(0.125rem);
-    width: calc(1.5rem - 0.25rem);
-    height: calc(1.5rem - 0.25rem);
-    background-color: white;
-    border-radius: 0.5rem;
-    content: "";
-    position: absolute;
-    transition: transform 0.15s ease-in-out, background-color 0.15s ease-in-out;
-}
-
-.custom-switch .custom-control-input:checked ~ .custom-control-label::after {
-    transform: translateX(1.5rem);
-}
-
-.custom-control-label {
-    position: relative;
-    margin-bottom: 0;
-    vertical-align: top;
-    cursor: pointer;
-}
-
 /* Button Group */
 .button-group {
     display: flex;
