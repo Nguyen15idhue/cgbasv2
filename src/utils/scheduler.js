@@ -5,6 +5,7 @@ const { upsertStations, upsertDynamicInfo, getAllStationIds, getCgbasStationIds 
 const { checkAndTriggerRecovery } = require('./autoMonitor'); // Import bộ giám sát mới
 const scheduledShutdownService = require('../services/scheduledShutdownService'); // Import scheduled shutdown
 const shutdownVerifyService = require('../services/shutdownVerifyService'); // Verify online lai sau bat (Phase 2)
+const logPruneService = require('../services/logPruneService'); // Don log cu hang ngay
 const ewelinkOAuthService = require('../services/ewelinkOAuthService'); // Import OAuth service
 
 let isSyncing = false;
@@ -86,7 +87,17 @@ function initCronJobs() {
         }
     });
 
-    // Tác vụ 5: Refresh eWeLink token mỗi 7 ngày (chạy vào 0h chủ nhật)
+    // Tác vụ 5: Don log cu (ewelink_api_logs, ntrip_logs) luc 03:00 hang ngay
+    cron.schedule('0 3 * * *', async () => {
+        try {
+            logger.info('[Scheduler] Don log cu hang ngay...');
+            await logPruneService.runOnce();
+        } catch (e) {
+            logger.error('[Scheduler] Loi don log: ' + e.message);
+        }
+    });
+
+    // Tác vụ 6: Refresh eWeLink token mỗi 7 ngày (chạy vào 0h chủ nhật)
     cron.schedule('0 0 * * 0', async () => {
         try {
             logger.info('[Scheduler] 🔄 Bắt đầu refresh eWeLink token (7 ngày/lần)...');
@@ -102,7 +113,7 @@ function initCronJobs() {
         }
     });
 
-    logger.info('🚀 Scheduler: 5s (Satellite & Recovery) | 1h (Station List) | 30s (Scheduled Shutdown) | 2m (Verify Online) | 7 days (eWeLink Token).');
+    logger.info('🚀 Scheduler: 5s (Satellite & Recovery) | 1h (Station List) | 30s (Scheduled Shutdown) | 2m (Verify Online) | daily 03:00 (Log Prune) | 7 days (eWeLink Token).');
 }
 
 module.exports = { initCronJobs };

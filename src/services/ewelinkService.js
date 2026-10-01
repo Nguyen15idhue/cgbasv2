@@ -211,26 +211,47 @@ async function refreshAccessToken() {
 }
 
 /**
- * Hàm ghi log vào Database
+ * Hàm ghi log vào Database.
+ * TIET KIEM DISK: chi ghi khi loi hoac cham (>=2s); body rut gon
+ * (khong luu full thingList/familyList ~60KB/row).
  */
+const API_LOG_SLOW_MS = parseInt(process.env.EWELINK_LOG_SLOW_MS || '2000', 10);
+
+function summarizeApiBody(data) {
+    if (!data || typeof data !== 'object') return JSON.stringify(data || {});
+    const out = { error: data.error, msg: data.msg };
+    const inner = data.data || {};
+    if (Array.isArray(inner.thingList)) out.thingCount = inner.thingList.length;
+    if (Array.isArray(inner.familyList)) out.familyCount = inner.familyList.length;
+    if (data.error !== 0 && data.error !== undefined) {
+        // Loi: giu them doan ngan de debug (toi da ~2KB)
+        out.detail = JSON.stringify(inner).substring(0, 2000);
+    }
+    return JSON.stringify(out);
+}
+
 async function logApiCall(res) {
     try {
         const endTime = new Date();
         const config = res.config || res.response?.config;
-        if (!config) return;
+        if (!config || !config.metadata) return;
 
         const duration = endTime - config.metadata.startTime;
-        const method = config.method.toUpperCase();
-        const endpoint = config.url;
-        const payload = config.data || '';
+        const method = (config.method || 'unknown').toUpperCase();
+        const endpoint = config.url || '';
+        const payload = typeof config.data === 'string' ? config.data : JSON.stringify(config.data || '');
         const responseCode = res.status || 0;
-        const responseBody = JSON.stringify(res.data || {});
+        const data = res.data || {};
+        const isError = responseCode < 200 || responseCode >= 300 || (data.error !== undefined && data.error !== 0);
+
+        // Bo qua call thanh cong + nhanh
+        if (!isError && duration < API_LOG_SLOW_MS) return;
 
         // Lưu vào MySQL
         await db.execute(
             `INSERT INTO ewelink_api_logs (method, endpoint, payload, response_code, response_body, duration_ms) 
              VALUES (?, ?, ?, ?, ?, ?)`,
-            [method, endpoint, payload, responseCode, responseBody, duration]
+            [method, endpoint, payload.substring(0, 4000), responseCode, summarizeApiBody(data), duration]
         );
     } catch (err) {
         logger.error('[Logger] Lỗi ghi log API: ' + err.message);
@@ -257,11 +278,11 @@ async function getThingsPage(familyid, begin = 0, num = 100) {
 }
 
 /**
- * LẤY TOÀN BỘ THIẾT BỊ (Đã sửa lỗi phân trang và thiếu Family)
+ * LẤY TOÀN BỘ THIẾT BỊ (bản gốc, không cache)
  * Hàm này tự động quét qua tất cả Family và tất cả các trang.
  * Trả về định dạng giống API eWelink để main.js không phải sửa nhiều.
  */
-async function getAllThings() {
+async function fetchAllThingsUncached() {
     try {
         const allThings = [];
         const familyRes = await getAllFamilies();
@@ -322,7 +343,32 @@ async function toggleChannel(deviceid, outlet, status) {
         }
     };
     const response = await ewelinkApi.post('/v2/device/thing/status', payload);
+    // Dieu khien xong -> xoa cache de lan doc sau thay trang thai moi
+    if (response.data && response.data.error === 0) clearThingsCache();
     return response.data;
+}
+
+/**
+ * Cache danh sach thiet bi 45s: moi vong recovery goi getAllThings nhieu lan,
+ * vua ton API eWeLink vua de log DB. Trang thai online/switch on dinh trong
+ * vai chuc giay; sau moi toggle thanh cong cache bi xoa nen khong sai.
+ */
+let thingsCache = null;
+const THINGS_TTL_MS = parseInt(process.env.EWELINK_CACHE_TTL_MS || '45000', 10);
+
+function clearThingsCache() {
+    thingsCache = null;
+}
+
+async function getAllThings(forceRefresh = false) {
+    if (!forceRefresh && thingsCache && (Date.now() - thingsCache.at) < THINGS_TTL_MS) {
+        return thingsCache.data;
+    }
+    const res = await fetchAllThingsUncached();
+    if (res && res.error === 0) {
+        thingsCache = { at: Date.now(), data: res };
+    }
+    return res;
 }
 
 /**
@@ -382,7 +428,8 @@ async function forceRefreshToken() {
 }
 
 module.exports = { 
-    getAllThings, 
+    getAllThings,
+    clearThingsCache,
     toggleChannel,
     getCurrentTokens,
     updateTokens,

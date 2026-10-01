@@ -1,9 +1,17 @@
+# Gioi han log json-file: moi container toi da 3 file x 10MB (chong phinh disk)
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   # MySQL Database
   mysql:
     image: mysql:8.0-debian
     container_name: cgbas-mysql
     restart: unless-stopped
+    logging: *default-logging
     environment:
       TZ: Asia/Ho_Chi_Minh
       MYSQL_ROOT_PASSWORD: ${DB_PASS:-rootpassword}
@@ -32,6 +40,7 @@ services:
       dockerfile: Dockerfile
     container_name: cgbas-app-dev
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "3001:3001"
     environment:
@@ -65,6 +74,7 @@ services:
       dockerfile: Dockerfile
     container_name: cgbas-app-prod
     restart: always
+    logging: *default-logging
     ports:
       - "3001:3001"
     environment:
@@ -104,6 +114,7 @@ services:
       dockerfile: Dockerfile
     container_name: cgbas-ntrip-dev
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "3101:3101"
     environment:
@@ -132,6 +143,7 @@ services:
       dockerfile: Dockerfile
     container_name: cgbas-ntrip-prod
     restart: always
+    logging: *default-logging
     ports:
       - "3101:3101"
     environment:
