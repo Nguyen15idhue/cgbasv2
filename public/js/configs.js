@@ -464,6 +464,10 @@ async function loadScheduledShutdownConfig() {
             document.getElementById('newBatchSize').value = config.batch_size || 5;
             document.getElementById('newBatchDelay').value = config.batch_delay_seconds || 10;
             document.getElementById('newShutdownEnabled').checked = config.is_enabled || false;
+            document.getElementById('newVerifyDelay').value = config.verify_delay_minutes || 10;
+            document.getElementById('newVerifyEnabled').checked =
+                config.verify_enabled === undefined || config.verify_enabled === null
+                    ? true : Number(config.verify_enabled) !== 0;
         }
 
         if (statusResult.success && statusResult.data) {
@@ -544,6 +548,12 @@ function updateHistoryTable(history) {
         const startTime = h.started_at ? new Date(h.started_at).toLocaleString('vi-VN') : 'N/A';
         const endTime = h.completed_at ? new Date(h.completed_at).toLocaleString('vi-VN') : 'N/A';
         const executionDate = h.execution_date ? new Date(h.execution_date).toLocaleDateString('vi-VN') : 'N/A';
+
+        // Co details moi clickable (ban ghi cu details_count=0 thi disabled)
+        const hasDetails = Number(h.details_count || 0) > 0;
+        const countBtn = (value, filter, cls) => hasDetails
+            ? `<button type="button" class="btn btn-sm btn-link ${cls} history-count-btn" data-history-id="${h.id}" data-filter="${filter}" title="Xem chi tiết"><strong>${value || 0}</strong></button>`
+            : `<span class="${cls}"><strong>${value || 0}</strong></span>`;
         
         return `
             <tr>
@@ -551,12 +561,208 @@ function updateHistoryTable(history) {
                 <td><small>${startTime}</small></td>
                 <td><small>${endTime}</small></td>
                 <td>${h.total_stations || 0}</td>
-                <td class="text-success"><strong>${h.successful_stations || 0}</strong></td>
-                <td class="text-danger"><strong>${h.failed_stations || 0}</strong></td>
+                <td class="text-success">${countBtn(h.successful_stations, 'completed', 'text-success')}</td>
+                <td class="text-danger">${countBtn(h.failed_stations, 'failed', 'text-danger')}</td>
                 <td>${statusBadge}</td>
             </tr>
         `;
     }).join('');
+}
+
+/**
+ * Drill-down: popup chi tiet 1 lan tat/bat theo tung tram (Buoc 4).
+ * Du lieu lay 1 lan (khong filter server), loc tab o client.
+ */
+let historyDetailsCache = [];
+let historyDetailsFilter = '';
+
+function escapeHtmlConfigs(text) {
+    if (text === null || text === undefined) return '';
+    const div = document.createElement('div');
+    div.textContent = String(text);
+    return div.innerHTML;
+}
+
+function detailStatusBadge(fs) {
+    if (fs === 'completed') return '<span class="badge badge-success">Thành công</span>';
+    if (fs === 'skipped') return '<span class="badge badge-warning">Bỏ qua</span>';
+    return '<span class="badge badge-danger">Thất bại</span>';
+}
+
+function formatTimeConfigs(v) {
+    if (!v) return '—';
+    return new Date(v).toLocaleString('vi-VN');
+}
+
+function renderHistoryDetails() {
+    const tbody = document.getElementById('historyDetailsBody');
+    const rows = !historyDetailsFilter
+        ? historyDetailsCache
+        : historyDetailsFilter === 'not_online'
+            ? historyDetailsCache.filter(d => Number(d.verified_online) !== 1)
+            : historyDetailsCache.filter(d => d.final_status === historyDetailsFilter);
+
+    document.getElementById('cntAll').textContent = historyDetailsCache.length;
+    document.getElementById('cntCompleted').textContent = historyDetailsCache.filter(d => d.final_status === 'completed').length;
+    document.getElementById('cntFailed').textContent = historyDetailsCache.filter(d => d.final_status === 'failed').length;
+    document.getElementById('cntSkipped').textContent = historyDetailsCache.filter(d => d.final_status === 'skipped').length;
+    document.getElementById('cntNotOnline').textContent = historyDetailsCache.filter(d => Number(d.verified_online) !== 1).length;
+
+    document.querySelectorAll('#historyDetailsTabs .btn').forEach(b => {
+        b.classList.toggle('active', (b.getAttribute('data-filter') || '') === historyDetailsFilter);
+    });
+
+    if (rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Không có trạm nào</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = rows.map((d, i) => {
+        const name = d.station_name
+            ? `<div><strong>${escapeHtmlConfigs(d.station_name)}</strong></div><div class="text-muted small">${escapeHtmlConfigs(d.station_id)}</div>`
+            : `<div class="text-muted">${escapeHtmlConfigs(d.station_id)}</div>`;
+        const when = formatTimeConfigs(d.poweron_at || d.shutdown_at);
+        const verified = Number(d.verified_online) === 1
+            ? '<span class="badge badge-success" title="Đã online lại">✅</span>'
+            : (d.verified_online === null || d.verified_online === undefined)
+                ? '<span class="badge badge-secondary" title="Chưa tới giờ verify">⏳</span>'
+                : '<span class="badge badge-danger" title="Vẫn offline sau khi bật">❌</span>';
+        return `
+            <tr>
+                <td>${i + 1}</td>
+                <td>${name}</td>
+                <td>${detailStatusBadge(d.final_status)}</td>
+                <td><small>${when}</small></td>
+                <td class="text-center">${verified}</td>
+                <td><button type="button" class="btn btn-sm btn-outline-secondary history-log-btn" data-station-id="${escapeHtmlConfigs(d.station_id)}" title="Xem log"><i class="fas fa-eye"></i></button></td>
+            </tr>
+        `;
+    }).join('');
+}
+
+async function openHistoryDetails(historyId, filter) {
+    const modal = document.getElementById('historyDetailsModal');
+    const tbody = document.getElementById('historyDetailsBody');
+    historyDetailsFilter = filter || '';
+    historyDetailsCache = [];
+
+    const titleEl = document.getElementById('historyDetailsTitle');
+    titleEl.textContent = 'Lịch sử #' + historyId;
+    modal.setAttribute('data-history-id', historyId);
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center">Đang tải...</td></tr>';
+    modal.classList.add('show');
+
+    try {
+        const [hRes, dRes] = await Promise.all([
+            fetch(`/api/scheduled-shutdown/history/${historyId}`),
+            fetch(`/api/scheduled-shutdown/history/${historyId}/details`)
+        ]);
+        const h = await hRes.json();
+        const d = await dRes.json();
+
+        if (h.success && h.data && h.data.started_at) {
+            const day = h.data.execution_date ? new Date(h.data.execution_date).toLocaleDateString('vi-VN') : '';
+            titleEl.textContent = `Ngày ${day} (Bắt đầu ${formatTimeConfigs(h.data.started_at)})`;
+        }
+        if (!d.success) throw new Error(d.message || 'Lỗi tải chi tiết');
+        if (!d.has_details) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Bản ghi cũ, không có dữ liệu chi tiết từng trạm</td></tr>';
+            return;
+        }
+        historyDetailsCache = d.data || [];
+        renderHistoryDetails();
+    } catch (error) {
+        console.error('[Configs] Error loading history details:', error);
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Không thể tải chi tiết</td></tr>';
+    }
+}
+
+// Uy thac su kien (SPA render lai bang): nut so luong + tab loc + nut mat xem log (Buoc 5)
+document.addEventListener('click', function(event) {
+    const countBtn = event.target.closest('.history-count-btn');
+    if (countBtn) {
+        openHistoryDetails(countBtn.getAttribute('data-history-id'), countBtn.getAttribute('data-filter'));
+        return;
+    }
+    const tabBtn = event.target.closest('#historyDetailsTabs .btn');
+    if (tabBtn) {
+        historyDetailsFilter = tabBtn.getAttribute('data-filter') || '';
+        renderHistoryDetails();
+        return;
+    }
+    const logBtn = event.target.closest('.history-log-btn');
+    if (logBtn) {
+        const modal = document.getElementById('historyDetailsModal');
+        const hid = (modal.getAttribute('data-history-id') || '');
+        if (typeof openStationLog === 'function') {
+            openStationLog(hid, logBtn.getAttribute('data-station-id'));
+        }
+    }
+});
+/**
+ * Popup con: timeline tat/bat + log loi cua 1 tram (Buoc 5).
+ * Du lieu lay tu cache cua modal 1, khong goi API them.
+ */
+function openStationLog(historyId, stationId) {
+    const modal = document.getElementById('stationLogModal');
+    const body = document.getElementById('stationLogBody');
+    const title = document.getElementById('stationLogTitle');
+
+    const d = (historyDetailsCache || []).find(x => String(x.station_id) === String(stationId));
+
+    if (!d) {
+        title.textContent = stationId;
+        body.innerHTML = '<p class="text-center text-danger">Không tìm thấy dữ liệu trạm này</p>';
+        modal.classList.add('show');
+        return;
+    }
+
+    title.textContent = (d.station_name ? d.station_name + ' (' + d.station_id + ')' : d.station_id);
+
+    const step = (ok, label, when, err) => {
+        if (ok === 1) {
+            return `<li class="step-ok"><strong>${label}:</strong> thành công lúc ${formatTimeConfigs(when)}</li>`;
+        }
+        if (ok === 0) {
+            return `<li class="step-fail"><strong>${label}:</strong> thất bại lúc ${formatTimeConfigs(when)}<pre>${escapeHtmlConfigs(err || 'Không rõ lỗi')}</pre></li>`;
+        }
+        return `<li class="step-info"><strong>${label}:</strong> không thực hiện</li>`;
+    };
+
+    let conclusion;
+    if (d.final_status === 'completed') {
+        conclusion = '<li class="step-ok"><strong>Kết luận:</strong> tắt + bật đều gọi API eWeLink thành công.</li>';
+    } else if (d.final_status === 'skipped') {
+        conclusion = '<li class="step-info"><strong>Kết luận:</strong> tắt thành công nhưng <u>chưa được bật lại</u> (thường do quy trình bị hủy giữa chừng). Nếu trạm vẫn offline, hãy bật thủ công.</li>';
+    } else {
+        const reason = d.shutdown_ok === 0 ? d.shutdown_error : d.poweron_error;
+        conclusion = `<li class="step-fail"><strong>Kết luận:</strong> thất bại, cần kiểm tra thủ công.<pre>${escapeHtmlConfigs(reason || 'Không rõ lỗi')}</pre></li>`;
+    }
+
+    // Dong 5: verify tram co online lai that khong
+    let verifyLine;
+    if (Number(d.verified_online) === 1) {
+        verifyLine = `<li class="step-ok"><strong>Online lại:</strong> ✅ trạm đã online lúc ${formatTimeConfigs(d.verified_at)}.</li>`;
+    } else if (d.verified_online === null || d.verified_online === undefined) {
+        verifyLine = '<li class="step-info"><strong>Online lại:</strong> ⏳ chưa tới giờ verify, quay lại sau.</li>';
+    } else {
+        verifyLine = `<li class="step-fail"><strong>Online lại:</strong> ❌ trạm vẫn offline tới ${formatTimeConfigs(d.verified_at)} — đã chuyển auto-recovery, xem thêm ở trang Lịch sử phục hồi.</li>`;
+    }
+
+    // Truong hop tat loi -> pha bat bi bo qua theo thiet ke (poweron_* NULL)
+    const poweronNote = (d.shutdown_ok === 0)
+        ? '<li class="step-info"><strong>Bật:</strong> bị bỏ qua vì pha tắt đã lỗi (thiết kế hiện tại chỉ bật các trạm tắt thành công).</li>'
+        : step(d.poweron_ok, 'Bật', d.poweron_at, d.poweron_error);
+
+    body.innerHTML = `
+        <ul class="log-timeline">
+            ${step(d.shutdown_ok, 'Tắt', d.shutdown_at, d.shutdown_error)}
+            <li class="step-info"><strong>Chờ:</strong> theo lịch rồi bật lại.</li>
+            ${poweronNote}
+            ${conclusion}
+            ${verifyLine}
+        </ul>`;
+    modal.classList.add('show');
 }
 
 /**
@@ -573,6 +779,8 @@ async function handleUpdateScheduledShutdown(e) {
     const batchSize = parseInt(document.getElementById('newBatchSize').value);
     const batchDelay = parseInt(document.getElementById('newBatchDelay').value);
     const isEnabled = document.getElementById('newShutdownEnabled').checked;
+    const verifyDelay = parseInt(document.getElementById('newVerifyDelay').value);
+    const verifyEnabled = document.getElementById('newVerifyEnabled').checked;
     
     // Validate
     if (!shutdownTime || !shutdownDuration || !batchSize || !batchDelay) {
@@ -601,6 +809,11 @@ async function handleUpdateScheduledShutdown(e) {
         showAlert('danger', 'Batch delay phải từ 5-60 giây!');
         return;
     }
+
+    if (!verifyDelay || verifyDelay < 5 || verifyDelay > 30) {
+        showAlert('danger', 'Thời gian chờ verify phải từ 5-30 phút!');
+        return;
+    }
     
     // Confirm
     if (!confirm('Bạn có chắc muốn cập nhật cấu hình lịch tắt/bật trạm?')) {
@@ -618,7 +831,9 @@ async function handleUpdateScheduledShutdown(e) {
                 shutdown_duration_minutes: shutdownDuration,
                 batch_size: batchSize,
                 batch_delay_seconds: batchDelay,
-                is_enabled: isEnabled
+                is_enabled: isEnabled,
+                verify_enabled: verifyEnabled,
+                verify_delay_minutes: verifyDelay
             })
         });
         

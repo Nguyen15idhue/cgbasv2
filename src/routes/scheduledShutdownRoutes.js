@@ -31,6 +31,7 @@ router.get('/config', async (req, res) => {
 router.put('/config', async (req, res) => {
     try {
         const { shutdown_time, shutdown_duration_minutes, batch_size, batch_delay_seconds, is_enabled } = req.body;
+        const { verify_enabled, verify_delay_minutes } = req.body;
         
         // Validation
         if (!shutdown_time || !shutdown_duration_minutes || !batch_size || !batch_delay_seconds) {
@@ -70,13 +71,26 @@ router.put('/config', async (req, res) => {
                 message: 'Batch delay phải từ 5-60 giây'
             });
         }
+
+        // Validate verify config (optional)
+        if (verify_delay_minutes !== undefined) {
+            const vd = parseInt(verify_delay_minutes, 10);
+            if (isNaN(vd) || vd < 5 || vd > 30) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Thời gian chờ verify phải từ 5-30 phút'
+                });
+            }
+        }
         
         const result = await scheduledShutdownService.updateConfig({
             shutdown_time,
             shutdown_duration_minutes: parseInt(shutdown_duration_minutes),
             batch_size: parseInt(batch_size),
             batch_delay_seconds: parseInt(batch_delay_seconds),
-            is_enabled: is_enabled !== undefined ? Boolean(is_enabled) : true
+            is_enabled: is_enabled !== undefined ? Boolean(is_enabled) : true,
+            verify_enabled: verify_enabled !== undefined ? Boolean(verify_enabled) : true,
+            verify_delay_minutes: verify_delay_minutes !== undefined ? parseInt(verify_delay_minutes, 10) : 10
         });
         
         if (result) {
@@ -224,6 +238,80 @@ router.get('/history', async (req, res) => {
             message: 'Lỗi lấy lịch sử',
             error: error.message
         });
+    }
+});
+
+/**
+ * GET /api/scheduled-shutdown/history/:id
+ * Lấy 1 bản ghi lịch sử (dùng cho tiêu đề popup).
+ */
+router.get('/history/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        if (!id) {
+            return res.status(400).json({ success: false, message: 'ID không hợp lệ' });
+        }
+        const [rows] = await require('../config/database').execute(
+            'SELECT * FROM scheduled_shutdown_history WHERE id = ?',
+            [id]
+        );
+        if (rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy bản ghi' });
+        }
+        res.json({ success: true, data: rows[0] });
+    } catch (error) {
+        logger.error('[API ScheduledShutdown] Lỗi lấy history theo id: ' + error.message);
+        res.status(500).json({ success: false, message: 'Lỗi lấy lịch sử', error: error.message });
+    }
+});
+
+/**
+ * GET /api/scheduled-shutdown/history/:id/details?status=completed|failed|skipped
+ * Chi tiết từng trạm của 1 lần chạy (popup lịch sử).
+ * Bản ghi cũ (trước migration 017) không có details -> has_details=false, data=[].
+ */
+router.get('/history/:id/details', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        if (!id) {
+            return res.status(400).json({ success: false, message: 'ID không hợp lệ' });
+        }
+        const { status } = req.query;
+        if (status && !['completed', 'failed', 'skipped'].includes(status)) {
+            return res.status(400).json({ success: false, message: 'status phải là completed|failed|skipped' });
+        }
+
+        const db = require('../config/database');
+        const [hist] = await db.execute(
+            'SELECT * FROM scheduled_shutdown_history WHERE id = ?',
+            [id]
+        );
+        if (hist.length === 0) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy bản ghi' });
+        }
+
+        let sql = `
+            SELECT d.*, s.stationName AS station_name, s.identificationName AS station_identification
+            FROM scheduled_shutdown_details d
+            LEFT JOIN stations s ON d.station_id = s.id
+            WHERE d.history_id = ?`;
+        const params = [id];
+        if (status) {
+            sql += ' AND d.final_status = ?';
+            params.push(status);
+        }
+        sql += ' ORDER BY s.stationName ASC, d.station_id ASC';
+        const [details] = await db.query(sql, params);
+
+        res.json({
+            success: true,
+            has_details: details.length > 0,
+            history: hist[0],
+            data: details
+        });
+    } catch (error) {
+        logger.error('[API ScheduledShutdown] Lỗi lấy details: ' + error.message);
+        res.status(500).json({ success: false, message: 'Lỗi lấy chi tiết', error: error.message });
     }
 });
 

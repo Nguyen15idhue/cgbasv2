@@ -23,3 +23,9 @@ demo/
 # OS files
 Thumbs.db
 .DS_Store
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+tests/fe/.auth.json

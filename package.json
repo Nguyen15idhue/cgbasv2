@@ -5,6 +5,7 @@
   "scripts": {
     "start": "node src/main.js",
     "dev": "node src/main.js",
+    "test:fe": "playwright test",
     "test:recovery-stress": "node scripts/stress-recovery-concurrency.js"
   },
   "keywords": [],
@@ -25,5 +26,8 @@
     "node-cron": "^4.2.1",
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
   }
 }

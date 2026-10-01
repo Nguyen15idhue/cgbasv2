@@ -698,6 +698,48 @@ textarea.form-control {
     gap: 10px;
 }
 
+/* Popup con xem log tram: noi tren modal chi tiet */
+#stationLogModal {
+    z-index: 1060;
+}
+
+.log-timeline {
+    list-style: none;
+    padding-left: 0;
+    margin-bottom: 0;
+}
+
+.log-timeline li {
+    padding: 8px 0 8px 8px;
+    border-left: 3px solid #dee2e6;
+    margin-left: 6px;
+    padding-left: 12px;
+    margin-bottom: 6px;
+}
+
+.log-timeline li.step-ok {
+    border-left-color: #28a745;
+}
+
+.log-timeline li.step-fail {
+    border-left-color: #dc3545;
+}
+
+.log-timeline li.step-info {
+    border-left-color: #ffc107;
+}
+
+.log-timeline pre {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 8px;
+    margin: 6px 0 0 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 12px;
+}
+
 .ml-2 {
     margin-left: 8px;
 }

@@ -300,17 +300,42 @@ LIMIT 7;
 ### Kiểm Tra Trạm Lỗi
 
 ```sql
--- Trạm bị lỗi trong lần shutdown gần nhất
-SELECT 
-    sl.station_id,
+-- Trạm bị lỗi trong lần shutdown gần nhất (xem details, vì labels đã bị xóa sau mỗi lần chạy)
+SELECT
+    d.station_id,
     s.stationName,
-    sl.status,
-    sl.error_message
-FROM scheduled_shutdown_labels sl
-JOIN stations s ON sl.station_id = s.id
-WHERE sl.status = 'failed'
-ORDER BY sl.labeled_at DESC;
+    d.final_status,
+    d.shutdown_error,
+    d.poweron_error
+FROM scheduled_shutdown_details d
+LEFT JOIN stations s ON d.station_id = s.id
+WHERE d.history_id = (SELECT MAX(id) FROM scheduled_shutdown_history)
+  AND d.final_status != 'completed';
 ```
+
+---
+
+## Chi Tiết Từng Trạm (Drill-down) — từ 01/10/2026 (kế hoạch `docs/plan/01`)
+
+- Bảng `scheduled_shutdown_details` (migration `017`): snapshot mỗi trạm mỗi lần chạy
+  (`shutdown_ok/error/at`, `poweron_ok/error/at`, `final_status completed|failed|skipped`),
+  FK CASCADE theo history. Labels vẫn là nguồn điều phối runtime và vẫn bị xóa sau chạy.
+- API (sau `requireAuth`):
+  - `GET /api/scheduled-shutdown/history/:id` — 1 bản ghi (tiêu đề popup).
+  - `GET /api/scheduled-shutdown/history/:id/details?status=completed|failed|skipped`
+    — chi tiết từng trạm + `has_details` (bản ghi trước 017 trả `[]`, UI disable nút).
+- UI trang `/configs`: số Thành công/Thất bại là nút bấm → modal bảng
+  (STT, Tên trạm, Trạng thái, Thời gian, Online lại, 👁) có tab lọc
+  (Tất cả/Thành công/Thất bại/Bỏ qua/Chưa online lại) → popup con timeline
+  Tắt → Chờ → Bật → Kết luận → Online lại, kèm lỗi nguyên văn.
+- Verify online lại (phase 2, migration `018`, service `shutdownVerifyService.js`, cron 2 phút):
+  sau pha bật `verify_delay_minutes` (mặc định 10, cấu hình 5–30 ở form `/configs`),
+  hệ thống đọc `station_dynamic_info.connectStatus` từng trạm và chót
+  `verified_online` (1 đã online / 0 vẫn offline / NULL chưa tới giờ check).
+  Trạm verify offline mà chưa có job thì monitor sẵn có tự vớt (không insert trùng).
+- Lưu ý ngữ nghĩa: "Thành công" = eWeLink API `error===0` cả 2 pha;
+  "Online lại ✅" mới khẳng định trạm có điện và online thật.
+- Retention: details quá 90 ngày tự xóa cuối mỗi lần chạy; history tổng hợp giữ lại.
 
 ---
 

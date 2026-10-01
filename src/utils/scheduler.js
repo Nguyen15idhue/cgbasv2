@@ -4,6 +4,7 @@ const { fetchStations, fetchDynamicInfo } = require('../services/cgbasApi');
 const { upsertStations, upsertDynamicInfo, getAllStationIds, getCgbasStationIds } = require('../repository/stationRepo');
 const { checkAndTriggerRecovery } = require('./autoMonitor'); // Import bộ giám sát mới
 const scheduledShutdownService = require('../services/scheduledShutdownService'); // Import scheduled shutdown
+const shutdownVerifyService = require('../services/shutdownVerifyService'); // Verify online lai sau bat (Phase 2)
 const ewelinkOAuthService = require('../services/ewelinkOAuthService'); // Import OAuth service
 
 let isSyncing = false;
@@ -76,7 +77,16 @@ function initCronJobs() {
         }
     });
 
-    // Tác vụ 4: Refresh eWeLink token mỗi 7 ngày (chạy vào 0h chủ nhật)
+    // Tác vụ 4: Verify tram online lai sau pha bat (Phase 2, moi 2 phut)
+    cron.schedule('*/2 * * * *', async () => {
+        try {
+            await shutdownVerifyService.runOnce();
+        } catch (e) {
+            logger.error('[Scheduler] Loi verify online: ' + e.message);
+        }
+    });
+
+    // Tác vụ 5: Refresh eWeLink token mỗi 7 ngày (chạy vào 0h chủ nhật)
     cron.schedule('0 0 * * 0', async () => {
         try {
             logger.info('[Scheduler] 🔄 Bắt đầu refresh eWeLink token (7 ngày/lần)...');
@@ -92,7 +102,7 @@ function initCronJobs() {
         }
     });
 
-    logger.info('🚀 Scheduler: 5s (Satellite & Recovery) | 1h (Station List) | 30s (Scheduled Shutdown) | 7 days (eWeLink Token).');
+    logger.info('🚀 Scheduler: 5s (Satellite & Recovery) | 1h (Station List) | 30s (Scheduled Shutdown) | 2m (Verify Online) | 7 days (eWeLink Token).');
 }
 
 module.exports = { initCronJobs };

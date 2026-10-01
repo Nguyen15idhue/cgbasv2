@@ -349,6 +349,31 @@
                         </div>
                     </div>
 
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="newVerifyDelay">
+                                    <i class="fas fa-heartbeat"></i> Chờ verify online lại (phút)
+                                </label>
+                                <input type="number" class="form-control" id="newVerifyDelay"
+                                       min="5" max="30" required>
+                                <small class="form-text text-muted">
+                                    Số phút chờ sau khi bật rồi mới kiểm tra trạm online lại (5-30)
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" id="newVerifyEnabled">
+                                    <label class="custom-control-label" for="newVerifyEnabled">
+                                        <strong>Bật verify trạm online lại</strong>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="button-group">
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-save"></i> Lưu Cấu Hình
@@ -399,6 +424,75 @@
                             </tbody>
                         </table>
                     </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Đóng</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Chi tiết 1 lần tắt/bật theo trạm -->
+    <div class="modal fade" id="historyDetailsModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-list"></i> Chi Tiết Tắt/Bật - <span id="historyDetailsTitle"></span>
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="btn-group btn-group-sm mb-2" id="historyDetailsTabs" role="group">
+                        <button type="button" class="btn btn-outline-secondary active" data-filter="">Tất cả (<span id="cntAll">0</span>)</button>
+                        <button type="button" class="btn btn-outline-success" data-filter="completed">Thành công (<span id="cntCompleted">0</span>)</button>
+                        <button type="button" class="btn btn-outline-danger" data-filter="failed">Thất bại (<span id="cntFailed">0</span>)</button>
+                        <button type="button" class="btn btn-outline-warning" data-filter="skipped">Bỏ qua (<span id="cntSkipped">0</span>)</button>
+                        <button type="button" class="btn btn-outline-info" data-filter="not_online">Chưa online lại (<span id="cntNotOnline">0</span>)</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>STT</th>
+                                    <th>Tên Trạm</th>
+                                    <th>Trạng Thái</th>
+                                    <th>Thời Gian</th>
+                                    <th>Online Lại</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyDetailsBody">
+                                <tr>
+                                    <td colspan="6" class="text-center">Đang tải...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Đóng</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal con: Log tat/bat 1 tram -->
+    <div class="modal fade" id="stationLogModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-eye"></i> Log Trạm - <span id="stationLogTitle"></span>
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" id="stationLogBody">
+                    <p class="text-center">Đang tải...</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Đóng</button>

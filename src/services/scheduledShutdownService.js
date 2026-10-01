@@ -68,16 +68,26 @@ class ScheduledShutdownService {
     async updateConfig(config) {
         try {
             const { shutdown_time, shutdown_duration_minutes, batch_size, batch_delay_seconds, is_enabled } = config;
+            const verifyEnabled = config.verify_enabled !== undefined ? Boolean(config.verify_enabled) : true;
+            const verifyDelay = parseInt(config.verify_delay_minutes, 10);
             
+            if (config.verify_delay_minutes !== undefined && (isNaN(verifyDelay) || verifyDelay < 5 || verifyDelay > 30)) {
+                logger.error('[ScheduledShutdown] verify_delay_minutes phai tu 5-30');
+                return false;
+            }
+
             await db.execute(
                 `UPDATE scheduled_shutdown_config 
                 SET shutdown_time = ?, 
                     shutdown_duration_minutes = ?, 
                     batch_size = ?, 
                     batch_delay_seconds = ?,
-                    is_enabled = ?
+                    is_enabled = ?,
+                    verify_enabled = ?,
+                    verify_delay_minutes = ?
                 WHERE id = 1`,
-                [shutdown_time, shutdown_duration_minutes, batch_size, batch_delay_seconds, is_enabled]
+                [shutdown_time, shutdown_duration_minutes, batch_size, batch_delay_seconds, is_enabled,
+                 verifyEnabled, isNaN(verifyDelay) ? 10 : verifyDelay]
             );
             
             logger.info('[ScheduledShutdown] ✓ Đã cập nhật cấu hình');
@@ -197,9 +207,50 @@ class ScheduledShutdownService {
     }
 
     /**
+     * Ghi nhan ket qua tung tram vao bang details (ton tai lau dai cho popup lich su).
+     * Labels van la nguon dieu phoi runtime; details la snapshot lich su.
+     */
+    async upsertDetail(historyId, stationId, deviceId, fields) {
+        try {
+            const cols = ['history_id', 'station_id', 'device_id', ...Object.keys(fields)];
+            const placeholders = cols.map(() => '?').join(', ');
+            const updates = Object.keys(fields).map((k) => `${k} = VALUES(${k})`).join(', ');
+            await db.execute(
+                `INSERT INTO scheduled_shutdown_details (${cols.join(', ')}) VALUES (${placeholders})
+                 ON DUPLICATE KEY UPDATE device_id = VALUES(device_id), ${updates}`,
+                [historyId, stationId, deviceId, ...Object.values(fields)]
+            );
+        } catch (error) {
+            logger.error(`[ScheduledShutdown] Loi ghi details tram ${stationId}: ` + error.message);
+        }
+    }
+
+    /**
+     * Chot final_status cho ca lan chay dua tren ket qua 2 pha.
+     * Chi goi truoc khi xoa labels (ket thuc / huy / loi).
+     */
+    async normalizeDetails(historyId, untouchedStatus = 'failed') {
+        try {
+            await db.execute(
+                `UPDATE scheduled_shutdown_details
+                 SET final_status = CASE
+                     WHEN shutdown_ok = 1 AND poweron_ok = 1 THEN 'completed'
+                     WHEN shutdown_ok = 1 AND poweron_ok IS NULL THEN 'skipped'
+                     WHEN shutdown_ok IS NULL THEN ?
+                     ELSE 'failed'
+                 END
+                 WHERE history_id = ?`,
+                [untouchedStatus, historyId]
+            );
+        } catch (error) {
+            logger.error('[ScheduledShutdown] Loi normalize details: ' + error.message);
+        }
+    }
+
+    /**
      * Tắt một batch trạm
      */
-    async shutdownBatch(stations) {
+    async shutdownBatch(stations, historyId) {
         const results = [];
         
         for (const station of stations) {
@@ -221,6 +272,9 @@ class ScheduledShutdownService {
                         'UPDATE scheduled_shutdown_labels SET status = "waiting_poweron", shutdown_completed_at = NOW() WHERE station_id = ?',
                         [station.station_id]
                     );
+                    await this.upsertDetail(historyId, station.station_id, station.device_id, {
+                        shutdown_ok: 1, shutdown_error: null, shutdown_at: new Date()
+                    });
                     logger.info(`[ScheduledShutdown] ✓ Đã tắt trạm ${station.station_id}`);
                     results.push({ station_id: station.station_id, success: true });
                 } else {
@@ -234,6 +288,9 @@ class ScheduledShutdownService {
                     'UPDATE scheduled_shutdown_labels SET status = "failed", error_message = ? WHERE station_id = ?',
                     [error.message, station.station_id]
                 );
+                await this.upsertDetail(historyId, station.station_id, station.device_id, {
+                    shutdown_ok: 0, shutdown_error: String(error.message || 'Unknown error').substring(0, 2000), shutdown_at: new Date()
+                });
                 
                 results.push({ station_id: station.station_id, success: false, error: error.message });
             }
@@ -245,7 +302,7 @@ class ScheduledShutdownService {
     /**
      * Bật một batch trạm
      */
-    async poweronBatch(stations) {
+    async poweronBatch(stations, historyId) {
         const results = [];
         
         for (const station of stations) {
@@ -267,6 +324,9 @@ class ScheduledShutdownService {
                         'UPDATE scheduled_shutdown_labels SET status = "completed", poweron_completed_at = NOW() WHERE station_id = ?',
                         [station.station_id]
                     );
+                    await this.upsertDetail(historyId, station.station_id, station.device_id, {
+                        poweron_ok: 1, poweron_error: null, poweron_at: new Date()
+                    });
                     logger.info(`[ScheduledShutdown] ✓ Đã bật trạm ${station.station_id}`);
                     results.push({ station_id: station.station_id, success: true });
                 } else {
@@ -280,6 +340,9 @@ class ScheduledShutdownService {
                     'UPDATE scheduled_shutdown_labels SET status = "failed", error_message = ? WHERE station_id = ?',
                     [error.message, station.station_id]
                 );
+                await this.upsertDetail(historyId, station.station_id, station.device_id, {
+                    poweron_ok: 0, poweron_error: String(error.message || 'Unknown error').substring(0, 2000), poweron_at: new Date()
+                });
                 
                 results.push({ station_id: station.station_id, success: false, error: error.message });
             }
@@ -350,6 +413,8 @@ class ScheduledShutdownService {
                 // Kiểm tra yêu cầu hủy
                 if (this.shouldCancel) {
                     logger.warn('[ScheduledShutdown] ⚠️ ĐÃ HỦY QUY TRÌNH');
+                    // Chot details truoc khi xoa labels
+                    await this.normalizeDetails(this.currentExecutionId, 'skipped');
                     // Xóa labels ngay khi hủy
                     await db.execute('DELETE FROM scheduled_shutdown_labels');
                     logger.info('[ScheduledShutdown] ✓ Đã xóa tất cả labels (sau hủy)');
@@ -368,7 +433,7 @@ class ScheduledShutdownService {
                 if (batch.length === 0) break;
                 
                 logger.info(`[ScheduledShutdown] Xử lý batch: ${batch.length} trạm...`);
-                const results = await this.shutdownBatch(batch);
+                const results = await this.shutdownBatch(batch, this.currentExecutionId);
                 
                 // Đếm kết quả
                 results.forEach(r => r.success ? successCount++ : failCount++);
@@ -385,6 +450,7 @@ class ScheduledShutdownService {
             // Kiểm tra hủy trước khi sleep
             if (this.shouldCancel) {
                 logger.warn('[ScheduledShutdown] ⚠️ ĐÃ HỦY trước khi chờ');
+                await this.normalizeDetails(this.currentExecutionId, 'skipped');
                 // Xóa labels ngay khi hủy
                 await db.execute('DELETE FROM scheduled_shutdown_labels');
                 logger.info('[ScheduledShutdown] ✓ Đã xóa tất cả labels (sau hủy)');
@@ -402,6 +468,7 @@ class ScheduledShutdownService {
                 // Kiểm tra yêu cầu hủy
                 if (this.shouldCancel) {
                     logger.warn('[ScheduledShutdown] ⚠️ ĐÃ HỦY QUY TRÌNH POWERON');
+                    await this.normalizeDetails(this.currentExecutionId, 'skipped');
                     // Xóa labels ngay khi hủy
                     await db.execute('DELETE FROM scheduled_shutdown_labels');
                     logger.info('[ScheduledShutdown] ✓ Đã xóa tất cả labels (sau hủy)');
@@ -420,7 +487,7 @@ class ScheduledShutdownService {
                 if (batch.length === 0) break;
                 
                 logger.info(`[ScheduledShutdown] Bật lại batch: ${batch.length} trạm...`);
-                const results = await this.poweronBatch(batch);
+                const results = await this.poweronBatch(batch, this.currentExecutionId);
                 
                 // Delay giữa các batch
                 if (batch.length === batchSize) {
@@ -447,9 +514,33 @@ class ScheduledShutdownService {
                 [stats.completed, stats.failed, this.currentExecutionId]
             );
             
+            // Chot final_status cho details truoc khi xoa labels, doi chieu voi labels
+            await this.normalizeDetails(this.currentExecutionId, 'failed');
+            const [detailStats] = await db.execute(
+                "SELECT SUM(final_status = 'completed') AS completed, SUM(final_status = 'failed') AS failed, SUM(final_status = 'skipped') AS skipped FROM scheduled_shutdown_details WHERE history_id = ?",
+                [this.currentExecutionId]
+            );
+            if (Number(detailStats[0].completed || 0) !== Number(stats.completed || 0) ||
+                Number(detailStats[0].failed || 0) + Number(detailStats[0].skipped || 0) !== Number(stats.failed || 0)) {
+                logger.warn(`[ScheduledShutdown] Le nhau labels vs details: labels(${stats.completed}/${stats.failed}) details(${detailStats[0].completed}/${detailStats[0].failed}/${detailStats[0].skipped})`);
+            }
+
             // Xóa tất cả labels sau khi hoàn thành để không ảnh hưởng đến recovery mechanism
             await db.execute('DELETE FROM scheduled_shutdown_labels');
             logger.info('[ScheduledShutdown] ✓ Đã xóa tất cả labels');
+
+            // Retention: xoa details qua 90 ngay (history tong hop giu lai;
+            // ban ghi cu mat details se hien nút disabled o UI nhu ban ghi tien-017)
+            try {
+                const [pruned] = await db.execute(
+                    'DELETE FROM scheduled_shutdown_details WHERE created_at < NOW() - INTERVAL 90 DAY'
+                );
+                if ((pruned.affectedRows || 0) > 0) {
+                    logger.info(`[ScheduledShutdown] Da don ${pruned.affectedRows} details qua 90 ngay`);
+                }
+            } catch (retentionError) {
+                logger.error('[ScheduledShutdown] Loi don details cu: ' + retentionError.message);
+            }
             
             logger.info('[ScheduledShutdown] ========== KẾT THÚC QUY TRÌNH ==========');
             logger.info(`[ScheduledShutdown] Tổng: ${stats.total} | Thành công: ${stats.completed} | Thất bại: ${stats.failed}`);
@@ -465,7 +556,8 @@ class ScheduledShutdownService {
                 );
             }
             
-            // Xóa labels ngay cả khi có lỗi
+            // Xóa labels ngay cả khi có lỗi (chot details truoc)
+            await this.normalizeDetails(this.currentExecutionId, 'failed');
             await db.execute('DELETE FROM scheduled_shutdown_labels');
             logger.info('[ScheduledShutdown] ✓ Đã xóa tất cả labels (sau lỗi)');
             
@@ -488,9 +580,12 @@ class ScheduledShutdownService {
                 'SELECT status, COUNT(*) as count FROM scheduled_shutdown_labels GROUP BY status'
             );
             
-            // Lịch sử gần nhất
+            // Lịch sử gần nhất (kèm số dòng details để FE biết có drill-down được không)
             const [history] = await db.execute(
-                'SELECT * FROM scheduled_shutdown_history ORDER BY execution_date DESC, started_at DESC LIMIT 10'
+                `SELECT h.*,
+                    (SELECT COUNT(*) FROM scheduled_shutdown_details d WHERE d.history_id = h.id) AS details_count
+                 FROM scheduled_shutdown_history h
+                 ORDER BY execution_date DESC, started_at DESC LIMIT 10`
             );
             
             return {
@@ -567,9 +662,11 @@ class ScheduledShutdownService {
             );
             const total = countResult[0].total;
             
-            // Lấy dữ liệu theo trang
+            // Lấy dữ liệu theo trang (kèm số dòng details)
             const [history] = await db.query(
-                `SELECT * FROM scheduled_shutdown_history 
+                `SELECT h.*,
+                    (SELECT COUNT(*) FROM scheduled_shutdown_details d WHERE d.history_id = h.id) AS details_count
+                 FROM scheduled_shutdown_history h
                  ORDER BY execution_date DESC, started_at DESC 
                  LIMIT ${limit} OFFSET ${offset}`
             );
