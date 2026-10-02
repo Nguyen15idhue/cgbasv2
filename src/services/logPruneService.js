@@ -5,8 +5,8 @@ const logger = require('../utils/logger');
  * DON LOG CU: prune ewelink_api_logs + ntrip_logs theo dot nho.
  * Chay hang ngay luc thap diem; moi dot LIMIT 5000 de tranh lock/write stall.
  */
-const BATCH = 5000;
-const MAX_BATCHES = 40; // toi da ~200k dong/lan chay
+const BATCH = 1000; // nho de khong giu lock lau tren disk yeu (5000 x 65KB ~ 325MB/batch)
+const MAX_BATCHES = 30; // toi da ~30k dong/lan chay, cron hang ngay se grind dan
 
 async function pruneTable(table, dateColumn, days) {
     let total = 0;
